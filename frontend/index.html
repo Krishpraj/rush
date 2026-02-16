@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rush Racing 🏁</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <h1 class="game-title">RUSH</h1>
+            <p class="game-subtitle">RACING</p>
+            <div class="loader-bar">
+                <div class="loader-fill" id="loader-fill"></div>
+            </div>
+            <p class="loader-text" id="loader-text">Loading engine...</p>
+        </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen hidden">
+        <div class="menu-bg"></div>
+        <div class="menu-content">
+            <h1 class="game-title">RUSH</h1>
+            <p class="game-subtitle">RACING</p>
+            
+            <div class="menu-form">
+                <label class="input-label">Your Name</label>
+                <input type="text" id="player-name" class="neon-input" placeholder="Enter name..." maxlength="16" value="">
+                
+                <label class="input-label">Car Color</label>
+                <div class="color-picker" id="color-picker">
+                    <div class="color-option selected" data-color="#ff3333" style="background:#ff3333"></div>
+                    <div class="color-option" data-color="#33aaff" style="background:#33aaff"></div>
+                    <div class="color-option" data-color="#33ff33" style="background:#33ff33"></div>
+                    <div class="color-option" data-color="#ffaa00" style="background:#ffaa00"></div>
+                    <div class="color-option" data-color="#ff33ff" style="background:#ff33ff"></div>
+                    <div class="color-option" data-color="#ffffff" style="background:#ffffff"></div>
+                    <div class="color-option" data-color="#ffff33" style="background:#ffff33"></div>
+                    <div class="color-option" data-color="#00ffcc" style="background:#00ffcc"></div>
+                </div>
+
+                <div class="menu-buttons">
+                    <button class="btn btn-primary" id="btn-single">SOLO RACE</button>
+                    <button class="btn btn-accent" id="btn-create-party">CREATE PARTY</button>
+                    <button class="btn btn-secondary" id="btn-join-party">JOIN PARTY</button>
+                    <button class="btn btn-ghost" id="btn-leaderboard">LEADERBOARD</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Track Selection -->
+    <div id="track-select" class="screen hidden">
+        <div class="menu-bg"></div>
+        <div class="panel-content">
+            <h2 class="panel-title">SELECT TRACK</h2>
+            <div class="track-grid">
+                <div class="track-card selected" data-track="track_1">
+                    <div class="track-preview track-1-preview"></div>
+                    <h3>SPEED LOOP</h3>
+                    <p>Oval circuit - Easy</p>
+                </div>
+                <div class="track-card" data-track="track_2">
+                    <div class="track-preview track-2-preview"></div>
+                    <h3>CITY SPRINT</h3>
+                    <p>Urban circuit - Medium</p>
+                </div>
+                <div class="track-card" data-track="track_3">
+                    <div class="track-preview track-3-preview"></div>
+                    <h3>MOUNTAIN PASS</h3>
+                    <p>Hill circuit - Hard</p>
+                </div>
+            </div>
+            <div class="track-buttons">
+                <button class="btn btn-ghost" id="btn-track-back">BACK</button>
+                <button class="btn btn-primary" id="btn-track-go">START RACE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Party Lobby -->
+    <div id="party-lobby" class="screen hidden">
+        <div class="menu-bg"></div>
+        <div class="panel-content">
+            <h2 class="panel-title">PARTY LOBBY</h2>
+            <div class="party-code-display">
+                <span>Code:</span>
+                <span id="party-code-value" class="code-value">-----</span>
+                <button class="btn-icon" id="btn-copy-code" title="Copy code">📋</button>
+            </div>
+            <div class="party-track">
+                <span>Track: </span><span id="party-track-name">Speed Loop</span>
+                <button class="btn btn-small" id="btn-change-track-party">Change</button>
+            </div>
+            <div class="player-list" id="player-list"></div>
+            <div class="lobby-buttons">
+                <button class="btn btn-ghost" id="btn-leave-party">LEAVE</button>
+                <button class="btn btn-primary" id="btn-start-race" style="display:none">START RACE</button>
+                <p id="waiting-text" class="waiting-text">Waiting for host to start...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Party -->
+    <div id="join-party-screen" class="screen hidden">
+        <div class="menu-bg"></div>
+        <div class="panel-content">
+            <h2 class="panel-title">JOIN PARTY</h2>
+            <label class="input-label">Enter Party Code</label>
+            <input type="text" id="join-code-input" class="neon-input code-input" placeholder="XXXXX" maxlength="5">
+            <div class="join-buttons">
+                <button class="btn btn-ghost" id="btn-join-back">BACK</button>
+                <button class="btn btn-primary" id="btn-join-go">JOIN</button>
+            </div>
+            <p id="join-error" class="error-text hidden"></p>
+        </div>
+    </div>
+
+    <!-- Leaderboard Screen -->
+    <div id="leaderboard-screen" class="screen hidden">
+        <div class="menu-bg"></div>
+        <div class="panel-content">
+            <h2 class="panel-title">LEADERBOARD</h2>
+            <div class="lb-track-filter">
+                <button class="btn btn-small lb-filter active" data-filter="all">ALL</button>
+                <button class="btn btn-small lb-filter" data-filter="track_1">SPEED LOOP</button>
+                <button class="btn btn-small lb-filter" data-filter="track_2">CITY SPRINT</button>
+                <button class="btn btn-small lb-filter" data-filter="track_3">MOUNTAIN PASS</button>
+            </div>
+            <div class="lb-table-container">
+                <table class="lb-table">
+                    <thead>
+                        <tr><th>#</th><th>Player</th><th>Track</th><th>Best Lap</th><th>Total</th></tr>
+                    </thead>
+                    <tbody id="lb-body"></tbody>
+                </table>
+            </div>
+            <button class="btn btn-ghost" id="btn-lb-back">BACK</button>
+        </div>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+        <div class="hud-top">
+            <div class="hud-position">
+                <span id="hud-position">1st</span>
+            </div>
+            <div class="hud-lap">
+                <span>LAP </span><span id="hud-lap">1</span><span>/3</span>
+            </div>
+            <div class="hud-time">
+                <span id="hud-time">0:00.000</span>
+            </div>
+        </div>
+        <div class="hud-bottom">
+            <div class="hud-speed">
+                <span id="hud-speed">0</span>
+                <span class="speed-unit">KM/H</span>
+                <div class="boost-bar-container">
+                    <div class="boost-bar-label">BOOST <span class="boost-key-hint">[SHIFT]</span></div>
+                    <div class="boost-bar-bg">
+                        <div class="boost-bar-fill" id="hud-boost-fill"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="hud-minimap">
+                <canvas id="minimap-canvas" width="150" height="150"></canvas>
+            </div>
+        </div>
+        <div class="hud-checkpoint hidden" id="hud-checkpoint">
+            <span>CHECKPOINT</span>
+        </div>
+        <div class="hud-wrong-way hidden" id="hud-wrong-way">
+            <span class="wrong-way-icon">⚠</span>
+            <span>WRONG WAY</span>
+        </div>
+        <div class="hud-lap-time hidden" id="hud-lap-time">
+            <span>LAP TIME: </span><span id="hud-lap-time-val">0:00.000</span>
+        </div>
+        <button class="btn-icon hud-menu-btn" id="btn-hud-menu">☰</button>
+    </div>
+
+    <!-- Countdown -->
+    <div id="countdown" class="hidden">
+        <span id="countdown-text">3</span>
+    </div>
+
+    <!-- Race Results -->
+    <div id="race-results" class="screen hidden">
+        <div class="menu-bg"></div>
+        <div class="panel-content">
+            <h2 class="panel-title">RACE COMPLETE!</h2>
+            <div class="results-stats">
+                <div class="result-item">
+                    <span class="result-label">Total Time</span>
+                    <span class="result-value" id="result-total-time">0:00.000</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Best Lap</span>
+                    <span class="result-value" id="result-best-lap">0:00.000</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Position</span>
+                    <span class="result-value" id="result-position">1st</span>
+                </div>
+            </div>
+            <div class="results-players" id="results-players"></div>
+            <div class="result-buttons">
+                <button class="btn btn-primary" id="btn-race-again">RACE AGAIN</button>
+                <button class="btn btn-ghost" id="btn-back-menu">MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="screen hidden">
+        <div class="menu-bg"></div>
+        <div class="panel-content">
+            <h2 class="panel-title">PAUSED</h2>
+            <button class="btn btn-primary" id="btn-resume">RESUME</button>
+            <button class="btn btn-secondary" id="btn-restart">RESTART</button>
+            <button class="btn btn-ghost" id="btn-quit">QUIT TO MENU</button>
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls" class="hidden">
+        <div class="touch-steer-zone" id="touch-steer-zone">
+            <div class="touch-joystick" id="touch-joystick">
+                <div class="joystick-knob" id="joystick-knob"></div>
+            </div>
+        </div>
+        <div class="touch-buttons">
+            <button class="touch-btn touch-gas" id="touch-gas">GAS</button>
+            <button class="touch-btn touch-brake" id="touch-brake">BRK</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="/static/js/ammo-stub.js"></script>
+    <script src="/static/js/physics.js"></script>
+    <script src="/static/js/tracks.js"></script>
+    <script src="/static/js/car.js"></script>
+    <script src="/static/js/network.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/game.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
