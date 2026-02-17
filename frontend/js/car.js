@@ -458,13 +458,24 @@ class Car {
             const nameMat = new THREE.MeshBasicMaterial({
                 map: nameTexture,
                 transparent: true,
-                side: THREE.DoubleSide,
+                side: THREE.FrontSide,
                 depthTest: false,
             });
-            const nameMesh = new THREE.Mesh(nameGeo, nameMat);
-            nameMesh.position.y = 3.0;
-            this.group.add(nameMesh);
-            this.nameMesh = nameMesh;
+
+            const nameFront = new THREE.Mesh(nameGeo, nameMat);
+            nameFront.position.z = 0.02;
+
+            const nameBack = new THREE.Mesh(nameGeo, nameMat.clone());
+            nameBack.rotation.y = Math.PI;
+            nameBack.position.z = -0.02;
+
+            const nameGroup = new THREE.Group();
+            nameGroup.position.y = 3.0;
+            nameGroup.add(nameFront);
+            nameGroup.add(nameBack);
+
+            this.group.add(nameGroup);
+            this.nameMesh = nameGroup;
         }
     }
 
@@ -991,12 +1002,7 @@ class Car {
             }
         }
 
-        // Name tag billboard
-        if (this.nameMesh) {
-            this.nameMesh.lookAt(
-                this.scene.getObjectByProperty('isCamera', true)?.position || new THREE.Vector3(0, 10, 10)
-            );
-        }
+        // Name tag stays fixed relative to the car (no billboard rotation)
     }
 
     _setupOrbitControls() {
