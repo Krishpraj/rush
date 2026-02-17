@@ -234,11 +234,8 @@ def get_online_players():
 # --- Serve frontend ---
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 if os.path.exists(frontend_path):
-    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
-
-    @app.get("/")
-    def serve_index():
-        return FileResponse(os.path.join(frontend_path, "index.html"))
+    # Mount static files (css, js, assets)
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 
 # --- Cleanup old parties ---
