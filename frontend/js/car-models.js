@@ -11,8 +11,8 @@ class CarModelLoader {
             {
                 name: 'F5 Racer',
                 urls: [
-                    '/static/assets/source/uploads_files_5387911_f5.glb',
-                    '/static/assets/uploads_files_5387911_f5.glb',
+                    '/assets/source/uploads_files_5387911_f5.glb',
+                    '/assets/uploads_files_5387911_f5.glb',
                 ],
             },
         ];
