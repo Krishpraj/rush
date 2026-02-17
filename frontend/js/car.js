@@ -39,6 +39,12 @@ class Car {
         this.steerSpeed = 4.0;
         this.steerReturnSpeed = 6.0;
         this.suspensionStiffness = 30;
+        this.minSteerAngle = 0.2;
+        this.turnResponsiveness = 2.1;
+        this.baseLateralGrip = 0.92;
+        this.highSpeedLateralGrip = 0.985;
+        this.handbrakeGrip = 0.82;
+        this.stabilityAssist = 1.9;
 
         // Boost system
         this.boostMax = 2.0;          // seconds of boost
@@ -77,8 +83,8 @@ class Car {
         this._orbitLastX = 0;
         this._orbitLastY = 0;
         this._orbitReturnSpeed = 3.0; // how fast orbit snaps back
-        // GLB model index — set before construction or via options
-        this.modelIndex = options.modelIndex !== undefined ? options.modelIndex : -1;
+        // Force F5 model for all players
+        this.modelIndex = 0;
 
         this._setupOrbitControls();
 
@@ -360,16 +366,35 @@ class Car {
         if (this._boostFlames.length > 0 || this._boostLight) return;
 
         const flameMatCore = new THREE.MeshBasicMaterial({
-            color: 0xffaa22,
+            color: 0xfff2bf,
             transparent: true,
-            opacity: 0.9,
+            opacity: 0.95,
             side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+        });
+        const flameMatMid = new THREE.MeshBasicMaterial({
+            color: 0xff8f2e,
+            transparent: true,
+            opacity: 0.78,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
         });
         const flameMatOuter = new THREE.MeshBasicMaterial({
-            color: 0x33aaff,
+            color: 0x3f9bff,
             transparent: true,
-            opacity: 0.5,
+            opacity: 0.52,
             side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+        });
+        const glowMat = new THREE.SpriteMaterial({
+            color: 0xff9b3d,
+            transparent: true,
+            opacity: 0.7,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
         });
 
         const exhaustPositions = [
@@ -378,22 +403,41 @@ class Car {
         ];
 
         for (const p of exhaustPositions) {
-            const core = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.35, 8), flameMatCore.clone());
+            const core = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.42, 10, 1, true), flameMatCore.clone());
             core.rotation.x = -Math.PI / 2;
             core.position.copy(p);
             core.visible = false;
 
-            const outer = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.28, 8), flameMatOuter.clone());
+            const mid = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.62, 10, 1, true), flameMatMid.clone());
+            mid.rotation.x = -Math.PI / 2;
+            mid.position.copy(p.clone().add(new THREE.Vector3(0, 0, -0.07)));
+            mid.visible = false;
+
+            const outer = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.82, 10, 1, true), flameMatOuter.clone());
             outer.rotation.x = -Math.PI / 2;
-            outer.position.copy(p.clone().add(new THREE.Vector3(0, 0, -0.05)));
+            outer.position.copy(p.clone().add(new THREE.Vector3(0, 0, -0.11)));
             outer.visible = false;
 
+            const glow = new THREE.Sprite(glowMat.clone());
+            glow.position.copy(p.clone().add(new THREE.Vector3(0, 0.01, -0.02)));
+            glow.scale.set(0.24, 0.24, 1);
+            glow.visible = false;
+
             this.group.add(core);
+            this.group.add(mid);
             this.group.add(outer);
-            this._boostFlames.push({ core, outer });
+            this.group.add(glow);
+            this._boostFlames.push({
+                core,
+                mid,
+                outer,
+                glow,
+                base: p.clone(),
+                noiseOffset: Math.random() * Math.PI * 2,
+            });
         }
 
-        this._boostLight = new THREE.PointLight(0xff6600, 0, 6, 2);
+        this._boostLight = new THREE.PointLight(0xff5a1f, 0, 8, 2);
         this._boostLight.position.set(0, 0.35, -2.2);
         this.group.add(this._boostLight);
     }
@@ -731,19 +775,32 @@ class Car {
         if (this.input.left) targetSteer = this.maxSteerAngle;
         if (this.input.right) targetSteer = -this.maxSteerAngle;
 
-        // Less steering at high speed
-        const speedFactor = 1.0 - Math.min(Math.abs(this.speed) / this.maxSpeed, 0.7) * 0.6;
-        targetSteer *= speedFactor;
+        // Progressive steering lock: strong at low speed, stable at high speed
+        const speedAbs = Math.abs(this.speed);
+        const speedNorm = Math.min(speedAbs / this.maxSpeed, 1);
+        const steerLimit = THREE.MathUtils.lerp(
+            this.maxSteerAngle,
+            this.minSteerAngle,
+            Math.pow(speedNorm, 0.75)
+        );
+        targetSteer = Math.max(-steerLimit, Math.min(steerLimit, targetSteer));
 
         if (targetSteer !== 0) {
             this.steerAngle += (targetSteer - this.steerAngle) * Math.min(dt * this.steerSpeed, 1);
         } else {
-            this.steerAngle *= Math.max(0, 1 - dt * this.steerReturnSpeed);
+            const returnRate = this.steerReturnSpeed + speedNorm * 2.2;
+            this.steerAngle *= Math.max(0, 1 - dt * returnRate);
         }
 
         // Apply yaw rotation from steering (only when moving)
         if (Math.abs(this.speed) > 2) {
-            const turnRate = this.steerAngle * (this.speed / 100) * 2.5;
+            const reverseFactor = this.speed >= 0 ? 1 : -0.55;
+            const turnScale = 0.7 + Math.min(speedAbs / 120, 0.8);
+            const turnRate = this.steerAngle
+                * reverseFactor
+                * this.turnResponsiveness
+                * (this.speed / 100)
+                * turnScale;
             this.yaw += turnRate * dt;
         }
 
@@ -799,8 +856,11 @@ class Car {
 
         // Apply engine force
         if (this.engineForce !== 0) {
+            const tractionScale = 1.0 - Math.min(Math.abs(vx * right.x + vz * right.z) / 22, 0.3);
             this.body.applyCentralForce(new Ammo.btVector3(
-                forward.x * this.engineForce, 0, forward.z * this.engineForce
+                forward.x * this.engineForce * tractionScale,
+                0,
+                forward.z * this.engineForce * tractionScale
             ));
         }
 
@@ -816,9 +876,23 @@ class Car {
 
         // --- Lateral grip: cancel sideways velocity ---
         const lateralSpeed = vx * right.x + vz * right.z;
-        const lateralGrip = this.input.handbrake ? 0.90 : 0.97;
-        this.body.velocity._x -= right.x * lateralSpeed * lateralGrip;
-        this.body.velocity._z -= right.z * lateralSpeed * lateralGrip;
+        const baseGrip = this.input.handbrake
+            ? this.handbrakeGrip
+            : THREE.MathUtils.lerp(this.baseLateralGrip, this.highSpeedLateralGrip, speedNorm);
+        const slipFactor = Math.min(Math.abs(lateralSpeed) / 26, 1);
+        const dynamicGrip = baseGrip * (1 - slipFactor * 0.22);
+        this.body.velocity._x -= right.x * lateralSpeed * dynamicGrip;
+        this.body.velocity._z -= right.z * lateralSpeed * dynamicGrip;
+
+        // Stability assist: align velocity with heading at speed to reduce fishtailing
+        const planarSpeed = Math.sqrt(vx * vx + vz * vz);
+        if (!this.input.handbrake && planarSpeed > 8) {
+            const velDirX = vx / planarSpeed;
+            const velDirZ = vz / planarSpeed;
+            const cross = forward.x * velDirZ - forward.z * velDirX;
+            const headingError = Math.max(-1, Math.min(1, cross));
+            this.yaw -= headingError * dt * this.stabilityAssist * Math.min(planarSpeed / 45, 1.2);
+        }
 
         // --- Force body flat: kill all Y-rotation, roll, pitch physics ---
         // Only allow Y-position to change (gravity/ground)
@@ -882,18 +956,38 @@ class Car {
 
         // Boost flames + light effect
         if (this._boostFlames.length > 0) {
-            const pulse = 0.75 + Math.random() * 0.45;
             const show = this.isBoosting && this.boostFuel > 0.02;
+            const timeSec = performance.now() * 0.001;
+            const speedFactor = 1 + Math.min(Math.abs(this.speed) / 220, 0.95);
             this._boostFlames.forEach((fx) => {
                 fx.core.visible = show;
+                fx.mid.visible = show;
                 fx.outer.visible = show;
+                fx.glow.visible = show;
                 if (show) {
-                    fx.core.scale.set(1, pulse * (1.2 + Math.min(Math.abs(this.speed) / 180, 0.8)), 1);
-                    fx.outer.scale.set(1, pulse, 1);
+                    const flicker = 0.88
+                        + 0.2 * Math.sin(timeSec * 47 + fx.noiseOffset)
+                        + 0.1 * Math.sin(timeSec * 91 + fx.noiseOffset * 0.7);
+                    const stretch = speedFactor * (1.05 + 0.25 * Math.sin(timeSec * 30 + fx.noiseOffset));
+
+                    fx.core.scale.set(1, stretch * 1.15 * flicker, 1);
+                    fx.mid.scale.set(1, stretch * 1.05 * flicker, 1);
+                    fx.outer.scale.set(1, stretch * 0.95 * flicker, 1);
+                    fx.glow.scale.set(0.24 + 0.08 * flicker, 0.24 + 0.08 * flicker, 1);
+
+                    fx.core.material.opacity = 0.8 + 0.18 * flicker;
+                    fx.mid.material.opacity = 0.62 + 0.2 * flicker;
+                    fx.outer.material.opacity = 0.38 + 0.15 * flicker;
+                    fx.glow.material.opacity = 0.45 + 0.25 * flicker;
+
+                    fx.core.position.z = fx.base.z - 0.04 * flicker;
+                    fx.mid.position.z = fx.base.z - 0.08 - 0.06 * flicker;
+                    fx.outer.position.z = fx.base.z - 0.12 - 0.08 * flicker;
+                    fx.glow.position.z = fx.base.z - 0.03;
                 }
             });
             if (this._boostLight) {
-                this._boostLight.intensity = show ? (1.2 + Math.random() * 0.9) : 0;
+                this._boostLight.intensity = show ? (1.5 + Math.random() * 1.4) : 0;
             }
         }
 

@@ -448,12 +448,14 @@ class UIManager {
             if (fill) {
                 const pct = Math.max(0, Math.min(100, (data.boostFuel / data.boostMax) * 100));
                 fill.style.width = pct + '%';
-                // Color: cyan when full/regen, orange when boosting, red when empty
+                // Monochrome Forza-like boost telemetry styling
                 if (data.isBoosting) {
-                    fill.style.background = pct < 15 ? '#ff2222' : 'linear-gradient(90deg, #ff8800, #ffcc00)';
+                    fill.style.background = pct < 15
+                        ? 'linear-gradient(90deg, #9f9f9f, #666666)'
+                        : 'linear-gradient(90deg, #ffffff, #9f9f9f)';
                     fill.classList.add('boosting');
                 } else {
-                    fill.style.background = 'linear-gradient(90deg, #00ccff, #00ffcc)';
+                    fill.style.background = 'linear-gradient(90deg, #f5f5f5, #cfcfcf)';
                     fill.classList.remove('boosting');
                 }
             }
@@ -491,7 +493,7 @@ class UIManager {
                     setTimeout(tick, 1000);
                 } else {
                     textEl.textContent = 'GO!';
-                    textEl.style.color = '#33ff33';
+                    textEl.style.color = '#f5f5f5';
                     textEl.style.animation = 'none';
                     void textEl.offsetWidth;
                     textEl.style.animation = 'countPulse 1s ease-out';
@@ -619,7 +621,21 @@ class UIManager {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, 150, 150);
 
-        const scale = 0.6;
+        // Auto-fit scale based on track bounds (important for larger tracks)
+        let scale = 0.6;
+        if (trackPath && trackPath.length > 1) {
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            trackPath.forEach((p) => {
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.z < minZ) minZ = p.z;
+                if (p.z > maxZ) maxZ = p.z;
+            });
+            const spanX = Math.max(1, maxX - minX);
+            const spanZ = Math.max(1, maxZ - minZ);
+            const maxSpan = Math.max(spanX, spanZ);
+            scale = Math.max(0.28, Math.min(1.15, 120 / maxSpan));
+        }
         const cx = 75;
         const cy = 75;
         const offsetX = playerPos ? -playerPos.x * scale + cx : 0;
@@ -628,7 +644,7 @@ class UIManager {
         // Draw track path
         if (trackPath && trackPath.length > 1) {
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(0,255,204,0.3)';
+            ctx.strokeStyle = 'rgba(255,255,255,0.32)';
             ctx.lineWidth = 3;
             trackPath.forEach((p, i) => {
                 const x = p.x * scale + offsetX;
@@ -645,8 +661,10 @@ class UIManager {
             checkpoints.forEach(cp => {
                 const x = cp.x * scale + offsetX;
                 const z = cp.z * scale + offsetZ;
-                ctx.fillStyle = cp.passed ? 'rgba(0,255,204,0.5)' : 'rgba(255,255,255,0.2)';
-                ctx.fillRect(x - 2, z - 2, 4, 4);
+                ctx.beginPath();
+                ctx.fillStyle = cp.passed ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.22)';
+                ctx.arc(x, z, 2.2, 0, Math.PI * 2);
+                ctx.fill();
             });
         }
 
@@ -664,7 +682,7 @@ class UIManager {
 
         // Draw self
         if (playerPos) {
-            ctx.fillStyle = '#00ffcc';
+            ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(cx, cy, 4, 0, Math.PI * 2);
             ctx.fill();

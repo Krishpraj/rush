@@ -10,63 +10,59 @@ const TRACK_DATA = {
         name: "Speed Loop",
         difficulty: "Easy",
         laps: 3,
-        startPosition: { x: 0, y: 0.5, z: -50 },
+        startPosition: { x: 0, y: 0.5, z: -68 },
         startRotation: Math.PI,
         // Control points for CatmullRom spline (fewer = smoother curves)
         controlPoints: [
-            { x: 0, z: -50 },
-            { x: 0, z: -85 },
-            { x: 30, z: -115 },
-            { x: 65, z: -115 },
-            { x: 95, z: -85 },
-            { x: 95, z: -15 },
-            { x: 95, z: 45 },
-            { x: 65, z: 75 },
-            { x: 30, z: 75 },
-            { x: 0, z: 45 },
-            { x: 0, z: -15 },
+            { x: 0, z: -68 },
+            { x: 0, z: -115 },
+            { x: 41, z: -155 },
+            { x: 88, z: -155 },
+            { x: 128, z: -115 },
+            { x: 128, z: -20 },
+            { x: 128, z: 61 },
+            { x: 88, z: 101 },
+            { x: 41, z: 101 },
+            { x: 0, z: 61 },
+            { x: 0, z: -20 },
         ],
-        roadWidth: 18,
+        roadWidth: 20,
         splineSamples: 200,
-        // Ramps on this track
-        ramps: [
-            { splineT: 0.15, width: 14, length: 18, height: 2.5 },  // on the back straight
-            { splineT: 0.65, width: 14, length: 18, height: 2.0 },  // on the front straight
-        ],
+        ramps: [],
         checkpoints: [
-            { x: 0, z: -68, width: 18, rotation: 0 },
-            { x: 48, z: -115, width: 18, rotation: Math.PI / 2 },
-            { x: 95, z: -50, width: 18, rotation: 0 },
-            { x: 95, z: 15, width: 18, rotation: 0 },
-            { x: 48, z: 75, width: 18, rotation: Math.PI / 2 },
-            { x: 0, z: 15, width: 18, rotation: 0 },
+            { x: 0, z: -92, width: 20, rotation: 0 },
+            { x: 65, z: -155, width: 20, rotation: Math.PI / 2 },
+            { x: 128, z: -68, width: 20, rotation: 0 },
+            { x: 128, z: 20, width: 20, rotation: 0 },
+            { x: 65, z: 101, width: 20, rotation: Math.PI / 2 },
+            { x: 0, z: 20, width: 20, rotation: 0 },
         ],
-        finishLine: { x: 0, z: -45, width: 18, rotation: 0 },
+        finishLine: { x: 0, z: -61, width: 20, rotation: 0 },
         walls: [],
         decorations: [
-            { type: 'tree', x: -20, z: -70 },
-            { type: 'tree', x: -20, z: -40 },
-            { type: 'tree', x: -20, z: -10 },
-            { type: 'tree', x: -20, z: 20 },
-            { type: 'tree', x: -20, z: 50 },
-            { type: 'tree', x: 115, z: -70 },
-            { type: 'tree', x: 115, z: -40 },
-            { type: 'tree', x: 115, z: -10 },
-            { type: 'tree', x: 115, z: 20 },
-            { type: 'tree', x: 115, z: 50 },
-            { type: 'rock', x: 48, z: -130 },
-            { type: 'rock', x: 48, z: 92 },
-            { type: 'tree', x: 30, z: -130 },
-            { type: 'tree', x: 65, z: -130 },
-            { type: 'tree', x: 30, z: 92 },
-            { type: 'tree', x: 65, z: 92 },
+            { type: 'tree', x: -27, z: -95 },
+            { type: 'tree', x: -27, z: -54 },
+            { type: 'tree', x: -27, z: -14 },
+            { type: 'tree', x: -27, z: 27 },
+            { type: 'tree', x: -27, z: 68 },
+            { type: 'tree', x: 155, z: -95 },
+            { type: 'tree', x: 155, z: -54 },
+            { type: 'tree', x: 155, z: -14 },
+            { type: 'tree', x: 155, z: 27 },
+            { type: 'tree', x: 155, z: 68 },
+            { type: 'rock', x: 65, z: -176 },
+            { type: 'rock', x: 65, z: 124 },
+            { type: 'tree', x: 41, z: -176 },
+            { type: 'tree', x: 88, z: -176 },
+            { type: 'tree', x: 41, z: 124 },
+            { type: 'tree', x: 88, z: 124 },
         ],
         groundColor: 0x1a5c1a,
         roadColor: 0x333333,
         skyColor: 0x87CEEB,
         ambientLight: 0x404060,
         sunColor: 0xffffff,
-        sunPosition: { x: 100, y: 200, z: 50 },
+        sunPosition: { x: 135, y: 200, z: 68 },
     },
 
     // ===== TRACK 2: CITY SPRINT (Urban circuit - Medium) =====
@@ -215,6 +211,7 @@ class TrackBuilder {
         this.splineCurve = null;
         this.splinePoints = [];
         this.rampZones = [];
+        this._flameTexture = null;
     }
 
     buildTrack(trackId) {
@@ -674,8 +671,14 @@ class TrackBuilder {
 
     _buildCheckpoints(track) {
         this.checkpointMeshes = [];
+        const flameTexture = this._getFlameTexture();
         track.checkpoints.forEach((cp, i) => {
             const group = new THREE.Group();
+            let cpX = cp.x;
+            let cpZ = cp.z;
+            const checkpointPosts = [];
+            const checkpointFlames = [];
+            const checkpointLights = [];
 
             // AUTO-ORIENT: find the closest spline point and use its tangent
             let cpAngle = cp.rotation;
@@ -687,75 +690,172 @@ class TrackBuilder {
                     const d = (p.x - cp.x) ** 2 + (p.z - cp.z) ** 2;
                     if (d < bestDist) { bestDist = d; bestT = t; }
                 }
+                const nearest = this.splineCurve.getPoint(bestT);
+                cpX = nearest.x;
+                cpZ = nearest.z;
                 // Checkpoint gate should be perpendicular to the road direction
                 const tang = this.splineCurve.getTangent(bestT);
                 cpAngle = Math.atan2(tang.x, tang.z);
             }
 
-            // Gate posts — in LOCAL space (group rotation handles world orientation)
+            // Forza-like checkpoint marker: two clean side pillars (no top bar)
+            const pillarHalfSpan = Math.max(cp.width / 2, this.trackHalfWidth + 1.9);
             for (let side = -1; side <= 1; side += 2) {
-                const postGeo = new THREE.BoxGeometry(0.4, 5, 0.4);
+                const postGeo = new THREE.BoxGeometry(0.42, 4.8, 0.42);
                 const postMat = new THREE.MeshStandardMaterial({
-                    color: 0x00ffcc,
-                    emissive: 0x004433,
+                    color: 0xf2f2f2,
+                    emissive: 0xff4d00,
+                    emissiveIntensity: 0.08,
+                    roughness: 0.35,
+                    metalness: 0.15,
                 });
                 const post = new THREE.Mesh(postGeo, postMat);
-                post.position.set(side * cp.width / 2, 2.5, 0);
+                post.position.set(side * pillarHalfSpan, 2.4, 0);
+                post.castShadow = true;
                 group.add(post);
+                checkpointPosts.push(post);
+
+                const capGeo = new THREE.BoxGeometry(0.5, 0.12, 0.5);
+                const capMat = new THREE.MeshStandardMaterial({
+                    color: 0x101010,
+                    roughness: 0.6,
+                });
+                const cap = new THREE.Mesh(capGeo, capMat);
+                cap.position.set(side * pillarHalfSpan, 4.92, 0);
+                group.add(cap);
+
+                const flameOuterMat = new THREE.SpriteMaterial({
+                    map: flameTexture,
+                    color: 0xff571f,
+                    transparent: true,
+                    opacity: 0.68,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                });
+                const flameCoreMat = new THREE.SpriteMaterial({
+                    map: flameTexture,
+                    color: 0xffd388,
+                    transparent: true,
+                    opacity: 0.86,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                });
+
+                const flameOuter = new THREE.Sprite(flameOuterMat);
+                flameOuter.position.set(side * pillarHalfSpan, 5.6, 0);
+                flameOuter.scale.set(1.05, 1.75, 1);
+                group.add(flameOuter);
+
+                const flameCore = new THREE.Sprite(flameCoreMat);
+                flameCore.position.set(side * pillarHalfSpan, 5.55, 0.02);
+                flameCore.scale.set(0.58, 1.1, 1);
+                group.add(flameCore);
+
+                checkpointFlames.push({ outer: flameOuter, core: flameCore });
+
+                const flameLight = new THREE.PointLight(0xff6a1f, 0.8, 6.5, 2);
+                flameLight.position.set(side * pillarHalfSpan, 5.3, 0);
+                group.add(flameLight);
+                checkpointLights.push(flameLight);
             }
 
-            // Top bar — local space, no extra rotation needed
-            const barGeo = new THREE.BoxGeometry(cp.width, 0.3, 0.3);
-            const barMat = new THREE.MeshStandardMaterial({
-                color: 0x00ffcc,
-                emissive: 0x004433,
-                transparent: true,
-                opacity: 0.7,
-            });
-            const bar = new THREE.Mesh(barGeo, barMat);
-            bar.position.set(0, 5, 0);
-            group.add(bar);
-
-            // Number display
-            const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#00ffcc';
-            ctx.font = 'bold 40px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(i + 1), 32, 32);
-            const texture = new THREE.CanvasTexture(canvas);
-            const numGeo = new THREE.PlaneGeometry(1.5, 1.5);
-            const numMat = new THREE.MeshBasicMaterial({
-                map: texture,
-                transparent: true,
-                side: THREE.DoubleSide,
-            });
-            const numMesh = new THREE.Mesh(numGeo, numMat);
-            numMesh.position.set(0, 5.5, 0);
-            group.add(numMesh);
-
-            group.position.set(cp.x, 0, cp.z);
+            group.position.set(cpX, 0, cpZ);
             group.rotation.y = cpAngle;
             this.scene.add(group);
             this.trackObjects.push(group);
             this.checkpointMeshes.push({
                 mesh: group,
-                x: cp.x,
-                z: cp.z,
+                x: cpX,
+                z: cpZ,
                 width: cp.width,
                 rotation: cpAngle,
                 index: i,
                 passed: false,
+                posts: checkpointPosts,
+                flames: checkpointFlames,
+                lights: checkpointLights,
+                pulseOffset: Math.random() * Math.PI * 2,
             });
+        });
+    }
+
+    _getFlameTexture() {
+        if (this._flameTexture) return this._flameTexture;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+
+        const grad = ctx.createRadialGradient(32, 98, 6, 32, 82, 52);
+        grad.addColorStop(0.0, 'rgba(255,255,255,1)');
+        grad.addColorStop(0.3, 'rgba(255,200,90,0.95)');
+        grad.addColorStop(0.65, 'rgba(255,90,20,0.65)');
+        grad.addColorStop(1.0, 'rgba(255,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(32, 84, 28, 44, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const tipGrad = ctx.createRadialGradient(32, 40, 3, 32, 48, 22);
+        tipGrad.addColorStop(0.0, 'rgba(255,220,140,0.7)');
+        tipGrad.addColorStop(1.0, 'rgba(255,80,10,0)');
+        ctx.fillStyle = tipGrad;
+        ctx.beginPath();
+        ctx.ellipse(32, 50, 12, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        this._flameTexture = new THREE.CanvasTexture(canvas);
+        this._flameTexture.colorSpace = THREE.SRGBColorSpace;
+        return this._flameTexture;
+    }
+
+    updateCheckpointEffects(timeSec, nextCheckpointIndex) {
+        if (!this.checkpointMeshes || this.checkpointMeshes.length === 0) return;
+
+        this.checkpointMeshes.forEach((cp) => {
+            const isActive = !cp.passed && cp.index === nextCheckpointIndex;
+            const baseIntensity = cp.passed ? 0.25 : (isActive ? 1.35 : 0.82);
+            const pulse = 0.82 + 0.22 * Math.sin(timeSec * 8.5 + cp.pulseOffset);
+            const flicker = 0.9
+                + 0.08 * Math.sin(timeSec * 23 + cp.pulseOffset * 0.7)
+                + 0.05 * Math.sin(timeSec * 37 + cp.pulseOffset * 1.2);
+            const flameHeight = (cp.passed ? 0.7 : (isActive ? 1.2 : 0.95)) * pulse * flicker;
+
+            if (cp.posts) {
+                cp.posts.forEach((post) => {
+                    if (post.material) {
+                        post.material.emissiveIntensity = baseIntensity * (cp.passed ? 0.35 : 0.75);
+                    }
+                });
+            }
+
+            if (cp.flames) {
+                cp.flames.forEach((fx) => {
+                    fx.outer.scale.set(1.05 * pulse, 1.75 * flameHeight, 1);
+                    fx.core.scale.set(0.58 * pulse, 1.1 * flameHeight, 1);
+                    fx.outer.material.opacity = (cp.passed ? 0.3 : 0.62) * flicker;
+                    fx.core.material.opacity = (cp.passed ? 0.42 : 0.88) * flicker;
+                });
+            }
+
+            if (cp.lights) {
+                cp.lights.forEach((light) => {
+                    light.intensity = baseIntensity * pulse;
+                    light.color.setHex(isActive ? 0xff7a2f : 0xff5522);
+                });
+            }
         });
     }
 
     _buildFinishLine(track) {
         const fl = track.finishLine;
         const group = new THREE.Group();
+
+        // Extend finish width to barrier-to-barrier span (+margin)
+        const barrierHalfSpan = this.trackHalfWidth + 1.8;
+        const finishHalfSpan = Math.max(fl.width / 2, barrierHalfSpan + 0.35);
+        const finishWidth = finishHalfSpan * 2;
 
         // Checkered pattern
         const canvas = document.createElement('canvas');
@@ -772,7 +872,7 @@ class TrackBuilder {
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
 
-        const lineGeo = new THREE.PlaneGeometry(fl.width, 3);
+        const lineGeo = new THREE.PlaneGeometry(finishWidth, 3);
         const lineMat = new THREE.MeshBasicMaterial({
             map: texture,
             side: THREE.DoubleSide,
@@ -782,22 +882,25 @@ class TrackBuilder {
         lineMesh.position.y = 0.12;
         group.add(lineMesh);
 
-        // Finish arch
+        // Finish arch posts outside barriers
         for (let side = -1; side <= 1; side += 2) {
             const postGeo = new THREE.BoxGeometry(0.5, 6, 0.5);
             const postMat = new THREE.MeshStandardMaterial({
-                color: 0xff3366,
-                emissive: 0x660022,
+                color: 0xf3f3f3,
+                roughness: 0.35,
+                metalness: 0.2,
             });
             const post = new THREE.Mesh(postGeo, postMat);
-            post.position.set(side * fl.width / 2, 3, 0);
+            post.position.set(side * finishHalfSpan, 3, 0);
+            post.castShadow = true;
             group.add(post);
         }
 
-        const archGeo = new THREE.BoxGeometry(fl.width + 0.5, 0.5, 0.5);
+        const archGeo = new THREE.BoxGeometry(finishWidth + 0.6, 0.5, 0.5);
         const archMat = new THREE.MeshStandardMaterial({
-            color: 0xff3366,
-            emissive: 0x660022,
+            color: 0xf3f3f3,
+            roughness: 0.35,
+            metalness: 0.2,
         });
         const arch = new THREE.Mesh(archGeo, archMat);
         arch.position.set(0, 6, 0);
@@ -808,7 +911,7 @@ class TrackBuilder {
         txtCanvas.width = 256;
         txtCanvas.height = 64;
         const txtCtx = txtCanvas.getContext('2d');
-        txtCtx.fillStyle = '#ff3366';
+        txtCtx.fillStyle = '#f3f3f3';
         txtCtx.font = 'bold 48px monospace';
         txtCtx.textAlign = 'center';
         txtCtx.textBaseline = 'middle';
@@ -1013,6 +1116,10 @@ class TrackBuilder {
         this.splineCurve = null;
         this.splinePoints = [];
         this.rampZones = [];
+        if (this._flameTexture) {
+            this._flameTexture.dispose();
+            this._flameTexture = null;
+        }
     }
 
     getCheckpoints() {

@@ -259,7 +259,7 @@ class Game {
             color: this.carColor,
             playerName: this.playerName,
             isLocal: true,
-            modelIndex: this.carModelIndex !== undefined ? this.carModelIndex : 0,
+            modelIndex: 0,
         });
         this.localCar.initPhysics(this.trackData.startPosition);
         this.localCar.reset(this.trackData.startPosition, this.trackData.startRotation);
@@ -314,6 +314,7 @@ class Game {
             color: player.car_color || '#888888',
             playerName: player.name || 'Player',
             isLocal: false,
+            modelIndex: 0,
         });
         // Remote cars don't need full physics, just visual
         car.group.position.set(spawnPos.x, spawnPos.y, spawnPos.z);
@@ -487,6 +488,10 @@ class Game {
         const checkpoints = this.trackBuilder.getCheckpoints();
         const finishLine = this.trackData.finishLine;
 
+        if (this.trackBuilder?.updateCheckpointEffects) {
+            this.trackBuilder.updateCheckpointEffects(performance.now() * 0.001, this.nextCheckpoint);
+        }
+
         // --- Wrong-way detection ---
         this._detectWrongWay();
 
@@ -511,10 +516,25 @@ class Game {
 
         // Check finish line (all checkpoints passed)
         if (this.nextCheckpoint >= checkpoints.length) {
-            const dist = Math.sqrt(
-                (carPos.x - finishLine.x) ** 2 + (carPos.z - finishLine.z) ** 2
+            // Plane-based gate test (prevents early radial trigger)
+            const relX = carPos.x - finishLine.x;
+            const relZ = carPos.z - finishLine.z;
+            const gateDirX = Math.sin(finishLine.rotation || 0);
+            const gateDirZ = Math.cos(finishLine.rotation || 0);
+            const gateRightX = gateDirZ;
+            const gateRightZ = -gateDirX;
+
+            // across = lateral offset across finish width, along = depth through gate
+            const across = relX * gateRightX + relZ * gateRightZ;
+            const along = relX * gateDirX + relZ * gateDirZ;
+
+            const gateHalfWidth = Math.max(
+                (finishLine.width || 0) * 0.5,
+                (this.trackBuilder?.trackHalfWidth || 9) + 2.2
             );
-            if (dist < finishLine.width) {
+            const gateDepth = 2.4;
+
+            if (Math.abs(across) <= gateHalfWidth && Math.abs(along) <= gateDepth) {
                 this._completeLap();
             }
         }
@@ -636,6 +656,7 @@ class Game {
         // Find the last passed checkpoint or start
         const checkpoints = this.trackBuilder.getCheckpoints();
         let resetPos;
+        let resetYaw = this.trackData.startRotation;
         if (this.nextCheckpoint > 0 && checkpoints[this.nextCheckpoint - 1]) {
             const cp = checkpoints[this.nextCheckpoint - 1];
             resetPos = { x: cp.x, y: 1, z: cp.z };
@@ -646,7 +667,14 @@ class Game {
                 z: this.trackData.startPosition.z,
             };
         }
-        this.localCar.reset(resetPos, this.trackData.startRotation);
+
+        // Always compute heading from road tangent at reset point.
+        if (this.trackBuilder) {
+            const dir = this.trackBuilder.getTrackDirection(resetPos.x, resetPos.z);
+            resetYaw = Math.atan2(dir.dx, dir.dz);
+        }
+
+        this.localCar.reset(resetPos, resetYaw);
     }
 
     _updateHUD() {
