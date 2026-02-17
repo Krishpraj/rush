@@ -451,6 +451,7 @@ class TrackBuilder {
             const mat = new THREE.MeshStandardMaterial({
                 vertexColors: true,
                 roughness: 0.8,
+                side: THREE.DoubleSide,
             });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.receiveShadow = true;
@@ -1110,21 +1111,35 @@ class TrackBuilder {
                 const nx = pushDirX / pushLen; // normal pointing inward
                 const nz = pushDirZ / pushLen;
 
-                // Place car at the boundary
+                // Place car near the boundary with only a small corrective offset.
                 const overshoot = minDist - maxDist;
-                body.position._x += nx * overshoot;
-                body.position._z += nz * overshoot;
+                const correction = overshoot + 0.03;
+                body.position._x += nx * correction;
+                body.position._z += nz * correction;
 
-                // Kill velocity going outward (reflect inward)
-                const vDotN = body.velocity._x * nx + body.velocity._z * nz;
+                // Arcade wall behavior:
+                // - remove most outward velocity
+                // - preserve along-wall motion (sliding)
+                // - add a tiny inward component so the car doesn't stick on the edge
+                const vDotN = body.velocity._x * nx + body.velocity._z * nz; // +inward, -outward
+                const tangentX = body.velocity._x - vDotN * nx;
+                const tangentZ = body.velocity._z - vDotN * nz;
+
+                const tangentialDamping = 0.996;
+                const slideX = tangentX * tangentialDamping;
+                const slideZ = tangentZ * tangentialDamping;
+
+                let inwardVel;
                 if (vDotN < 0) {
-                    // Velocity is going outward — cancel it with a bounce
-                    body.velocity._x -= nx * vDotN * 1.3; // slight bounce
-                    body.velocity._z -= nz * vDotN * 1.3;
-                    // Speed penalty for hitting the wall
-                    body.velocity._x *= 0.85;
-                    body.velocity._z *= 0.85;
+                    // Hit the border: very soft inward settle (Forza-like wall slide).
+                    inwardVel = Math.max(0.6, Math.min(2.2, -vDotN * 0.08));
+                } else {
+                    // Already pointing inward: keep it but avoid huge spikes.
+                    inwardVel = Math.min(vDotN, 4.0);
                 }
+
+                body.velocity._x = slideX + nx * inwardVel;
+                body.velocity._z = slideZ + nz * inwardVel;
             }
             return true;
         }

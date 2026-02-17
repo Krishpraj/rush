@@ -430,17 +430,43 @@ class Game {
             if (this.localCar.body && this.trackBuilder) {
                 this.trackBuilder.constrainToTrack(this.localCar.body);
                 // Apply ramp heights — lift car when driving over ramps
+                const bodyX = this.localCar.body.position._x;
+                const bodyZ = this.localCar.body.position._z;
                 const rampH = this.trackBuilder.getRampHeight(
-                    this.localCar.body.position._x,
-                    this.localCar.body.position._z
+                    bodyX,
+                    bodyZ
                 );
+
+                // Visual ramp pitch (nose up/down) from front/back sampled ramp height
+                const fwdX = Math.sin(this.localCar.yaw);
+                const fwdZ = Math.cos(this.localCar.yaw);
+                const sampleDist = 1.7;
+                const frontH = this.trackBuilder.getRampHeight(
+                    bodyX + fwdX * sampleDist,
+                    bodyZ + fwdZ * sampleDist
+                );
+                const backH = this.trackBuilder.getRampHeight(
+                    bodyX - fwdX * sampleDist,
+                    bodyZ - fwdZ * sampleDist
+                );
+                const targetPitch = -Math.atan2(frontH - backH, sampleDist * 2);
+                this.localCar.setRampPitch(targetPitch);
+
                 if (rampH > 0.05) {
-                    const targetY = rampH + 0.5; // car half-height offset
-                    if (this.localCar.body.position._y < targetY) {
-                        this.localCar.body.position._y = targetY;
-                        if (this.localCar.body.velocity._y < 0) {
-                            this.localCar.body.velocity._y = 0;
-                        }
+                    const rampRideHeight = 0.06;
+                    const targetY = rampH + rampRideHeight;
+                    const currentY = this.localCar.body.position._y;
+                    const dy = targetY - currentY;
+
+                    // Follow ramp profile both upward and downward (prevents floating on descent)
+                    const followStep = Math.max(-0.5, Math.min(0.5, dy * 0.9));
+                    this.localCar.body.position._y = currentY + followStep;
+
+                    // Keep vertical velocity stable while tracking ramp surface
+                    if (dy > 0 && this.localCar.body.velocity._y < 0) {
+                        this.localCar.body.velocity._y = 0;
+                    } else if (dy < 0 && this.localCar.body.velocity._y > 0) {
+                        this.localCar.body.velocity._y *= 0.4;
                     }
                     // At ramp peak, give upward boost for a jump
                     if (rampH > 0.3 && this.localCar.body.velocity._y < 2) {

@@ -10,7 +10,10 @@ class CarModelLoader {
         this._carDefs = [
             {
                 name: 'F5 Racer',
-                urls: ['/static/assets/uploads_files_5387911_f5.glb'],
+                urls: [
+                    '/static/assets/source/uploads_files_5387911_f5.glb',
+                    '/static/assets/uploads_files_5387911_f5.glb',
+                ],
             },
         ];
     }

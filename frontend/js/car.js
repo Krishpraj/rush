@@ -61,6 +61,8 @@ class Car {
 
         // Yaw-based rotation (no roll/pitch ever)
         this.yaw = 0; // radians, 0 = facing +Z
+        this.visualPitch = 0;
+        this.targetRampPitch = 0;
 
         // Camera
         this.cameraMode = 0; // 0=chase, 1=hood, 2=top
@@ -709,8 +711,8 @@ class Car {
     update(dt) {
         if (!this.body) return;
 
-        // === PURE YAW-BASED 2D DRIVING ===
-        // The car ONLY rotates around Y. No roll, no pitch, ever.
+        // === PURE YAW-BASED 2D DRIVING PHYSICS ===
+        // Physics rotation stays yaw-only for stable handling.
 
         // Get position from physics body (only use Y for ground height)
         const pos = this.body.position;
@@ -839,7 +841,12 @@ class Car {
 
         // --- Update visual ---
         this.group.position.set(pos._x, pos._y, pos._z);
-        this.group.quaternion.copy(yawQuat);
+        const pitchLerp = Math.min(dt * 8.0, 1);
+        this.visualPitch += (this.targetRampPitch - this.visualPitch) * pitchLerp;
+        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(1, 0, 0), this.visualPitch
+        );
+        this.group.quaternion.copy(yawQuat.clone().multiply(pitchQuat));
 
         // Animate wheels
         const wheelSpin = this.speed * dt * 0.08;
@@ -990,6 +997,10 @@ class Car {
         return Math.abs(this.speed);
     }
 
+    setRampPitch(pitchRadians) {
+        this.targetRampPitch = Math.max(-0.35, Math.min(0.35, pitchRadians || 0));
+    }
+
     reset(position, rotation) {
         if (this.body) {
             this.yaw = rotation || 0;
@@ -1002,6 +1013,8 @@ class Car {
             });
             this.speed = 0;
             this.steerAngle = 0;
+            this.visualPitch = 0;
+            this.targetRampPitch = 0;
             // Reset camera to behind car
             const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
             this.cameraPosSmooth.set(
