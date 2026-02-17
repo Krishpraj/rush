@@ -22,8 +22,15 @@ class UIManager {
         // State
         this.selectedColor = '#ff3333';
         this.selectedTrack = 'track_1';
+        this.selectedCarIndex = 0;
         this.playerName = '';
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // Car selector state
+        this._carLoader = null;
+        this._previewScene = null;
+        this._previewCamera = null;
+        this._previewRenderer = null;
 
         // Callbacks (set by Game)
         this.onSoloRace = null;
@@ -186,11 +193,207 @@ class UIManager {
         });
     }
 
+    // --- Car Selector ---
+
+    initCarSelector(carLoader) {
+        this._carLoader = carLoader;
+        const count = carLoader ? carLoader.getCount() : 0;
+        const nameEl = document.getElementById('car-name');
+        const indexEl = document.getElementById('car-index');
+        const prevBtn = document.getElementById('car-prev');
+        const nextBtn = document.getElementById('car-next');
+
+        if (count === 0) {
+            nameEl.textContent = 'Default Car';
+            indexEl.textContent = '—';
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            this._initPreviewFallback();
+            return;
+        }
+
+        this.selectedCarIndex = 0;
+        this._initPreviewRenderer();
+        this._updateCarPreview();
+
+        prevBtn.addEventListener('click', () => {
+            this.selectedCarIndex = (this.selectedCarIndex - 1 + count) % count;
+            this._updateCarPreview();
+        });
+        nextBtn.addEventListener('click', () => {
+            this.selectedCarIndex = (this.selectedCarIndex + 1) % count;
+            this._updateCarPreview();
+        });
+    }
+
+    _initPreviewRenderer() {
+        const canvas = document.getElementById('car-preview-canvas');
+        if (!canvas) return;
+
+        this._previewScene = new THREE.Scene();
+        this._previewScene.background = new THREE.Color(0x1a1a2e);
+
+        // Lights
+        const amb = new THREE.AmbientLight(0xffffff, 0.6);
+        this._previewScene.add(amb);
+        const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+        dir.position.set(3, 5, 4);
+        this._previewScene.add(dir);
+        const fill = new THREE.DirectionalLight(0x4488ff, 0.3);
+        fill.position.set(-3, 2, -2);
+        this._previewScene.add(fill);
+
+        this._previewCamera = new THREE.PerspectiveCamera(40, canvas.width / canvas.height, 0.1, 50);
+        this._previewCamera.position.set(4, 2.5, 5);
+        this._previewCamera.lookAt(0, 0.5, 0);
+
+        this._previewRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        this._previewRenderer.setSize(canvas.width, canvas.height);
+        this._previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Ground plane
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(10, 10),
+            new THREE.MeshStandardMaterial({ color: 0x222244, roughness: 0.9 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.01;
+        this._previewScene.add(ground);
+    }
+
+    _initPreviewFallback() {
+        // Just show a simple colored rectangle for the preview
+        const canvas = document.getElementById('car-preview-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = this.selectedColor || '#ff3333';
+        ctx.fillRect(60, 40, 80, 50);
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Rajdhani';
+        ctx.textAlign = 'center';
+        ctx.fillText('Default Car', canvas.width / 2, 110);
+    }
+
+    _updateCarPreview() {
+        if (!this._carLoader) return;
+        const count = this._carLoader.getCount();
+        const nameEl = document.getElementById('car-name');
+        const indexEl = document.getElementById('car-index');
+
+        nameEl.textContent = this._carLoader.getName(this.selectedCarIndex);
+        indexEl.textContent = `${this.selectedCarIndex + 1} / ${count}`;
+
+        if (!this._previewScene || !this._previewRenderer) return;
+
+        // Remove old car model from scene
+        const old = this._previewScene.getObjectByName('preview-car');
+        if (old) this._previewScene.remove(old);
+
+        // Add new car model
+        const model = this._carLoader.getCarModel(this.selectedCarIndex);
+        if (model) {
+            model.name = 'preview-car';
+            // Slight rotation for a nicer preview angle
+            model.rotation.y = -Math.PI / 6;
+            this._previewScene.add(model);
+
+            // Detect wheel nodes for preview spin animation
+            this._previewWheels = [];
+            const wheelNamePattern = /wheel|tyre|tire|rim|roue|whl/i;
+
+            // Collect all candidate wheel nodes (groups, bones, and meshes)
+            const candidates = [];
+            model.traverse((child) => {
+                if (wheelNamePattern.test(child.name || '')) {
+                    const tmp = new THREE.Vector3();
+                    child.getWorldPosition(tmp);
+                    candidates.push({ node: child, worldPos: tmp });
+                }
+            });
+
+            // Prefer parent groups over child meshes
+            const parentIds = new Set(candidates.filter(c => !c.node.isMesh).map(c => c.node.id));
+            const filtered = candidates.filter(c => {
+                if (!c.node.isMesh) return true;
+                return !(c.node.parent && parentIds.has(c.node.parent.id));
+            });
+
+            // Dedupe by proximity
+            const used = [];
+            const modelBox = new THREE.Box3().setFromObject(model);
+            const mSize = modelBox.getSize(new THREE.Vector3());
+            for (const c of filtered) {
+                if (!used.some(p => p.distanceTo(c.worldPos) < mSize.x * 0.08)) {
+                    // Detect spin axis (local axis most aligned with world X)
+                    const wq = new THREE.Quaternion();
+                    c.node.getWorldQuaternion(wq);
+                    const invQ = wq.clone().invert();
+                    const localLat = new THREE.Vector3(1, 0, 0).applyQuaternion(invQ);
+                    const axes = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
+                    let bestAxis = axes[0], bestDot = 0;
+                    for (const ax of axes) {
+                        const d = Math.abs(localLat.dot(ax));
+                        if (d > bestDot) { bestDot = d; bestAxis = ax.clone(); }
+                    }
+                    if (localLat.dot(bestAxis) < 0) bestAxis.negate();
+
+                    this._previewWheels.push({
+                        node: c.node,
+                        baseQuaternion: c.node.quaternion.clone(),
+                        spinAxis: bestAxis,
+                    });
+                    used.push(c.worldPos.clone());
+                }
+            }
+        }
+
+        // Start turntable animation loop
+        if (this._previewAnimId) cancelAnimationFrame(this._previewAnimId);
+        this._startPreviewAnimation();
+    }
+
+    _startPreviewAnimation() {
+        const animate = () => {
+            this._previewAnimId = requestAnimationFrame(animate);
+            if (!this._previewScene || !this._previewRenderer || !this._previewCamera) return;
+
+            const car = this._previewScene.getObjectByName('preview-car');
+            if (car) {
+                // Slow turntable rotation
+                car.rotation.y += 0.008;
+            }
+
+            // Spin wheels for preview using per-wheel axis
+            if (this._previewWheels && this._previewWheels.length > 0) {
+                const spinAngle = Date.now() * 0.003;
+                for (const w of this._previewWheels) {
+                    const axis = w.spinAxis || new THREE.Vector3(1, 0, 0);
+                    const spinQuat = new THREE.Quaternion().setFromAxisAngle(axis, spinAngle);
+                    w.node.quaternion.copy(w.baseQuaternion).multiply(spinQuat);
+                }
+            }
+
+            this._previewRenderer.render(this._previewScene, this._previewCamera);
+        };
+        animate();
+    }
+
     showScreen(name) {
         // Hide all screens first
         Object.values(this.screens).forEach(s => s.classList.add('hidden'));
         if (this.screens[name]) {
             this.screens[name].classList.remove('hidden');
+        }
+        // Stop preview animation when leaving main menu
+        if (name !== 'mainMenu' && this._previewAnimId) {
+            cancelAnimationFrame(this._previewAnimId);
+            this._previewAnimId = null;
+        }
+        // Restart preview animation when returning to main menu
+        if (name === 'mainMenu' && this._previewScene && !this._previewAnimId) {
+            this._startPreviewAnimation();
         }
     }
 

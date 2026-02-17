@@ -13,9 +13,22 @@
 
     try {
         await game.init(ui, network);
-        ui.setLoadingProgress(40, 'Loading physics...');
+        ui.setLoadingProgress(30, 'Loading physics...');
 
-        // Initialize PeerJS
+        // Load car models (non-blocking — fallback to procedural if GLB fails)
+        ui.setLoadingProgress(40, 'Loading car models...');
+        try {
+            const carLoader = new CarModelLoader();
+            await carLoader.load();
+            window._carModelLoader = carLoader;
+            console.log('[Rush] Car models loaded:', carLoader.getCount());
+        } catch (e) {
+            console.warn('[Rush] Car model loading failed, using procedural cars:', e);
+        }
+
+        // Car model loaded — always use index 0
+        ui.selectedCarIndex = 0;
+
         ui.setLoadingProgress(60, 'Connecting to network...');
         const name = localStorage.getItem('rush_name') || '';
         const color = localStorage.getItem('rush_color') || '#ff3333';
@@ -35,8 +48,7 @@
 
         ui.setLoadingProgress(90, 'Preparing tracks...');
 
-        // Simulate a slight delay for UX
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 400));
 
         ui.setLoadingProgress(100, 'Ready!');
         await new Promise(r => setTimeout(r, 300));
@@ -57,6 +69,7 @@
         _savePrefs(playerName, carColor);
         game.playerName = playerName;
         game.carColor = carColor;
+        game.carModelIndex = 0;
         game.isMultiplayer = false;
         network.playerName = playerName;
         network.carColor = carColor;

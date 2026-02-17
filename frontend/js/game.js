@@ -41,6 +41,7 @@ class Game {
         // Player info
         this.playerName = 'Player';
         this.carColor = '#ff3333';
+        this.carModelIndex = 0;
         this.isMultiplayer = false;
 
         // Rankings (multiplayer)
@@ -71,7 +72,7 @@ class Game {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.2;
+        this.renderer.toneMappingExposure = 1.0;
 
         // Scene
         this.scene = new THREE.Scene();
@@ -258,6 +259,7 @@ class Game {
             color: this.carColor,
             playerName: this.playerName,
             isLocal: true,
+            modelIndex: this.carModelIndex !== undefined ? this.carModelIndex : 0,
         });
         this.localCar.initPhysics(this.trackData.startPosition);
         this.localCar.reset(this.trackData.startPosition, this.trackData.startRotation);

@@ -963,12 +963,12 @@ class TrackBuilder {
         oldLights.forEach(l => this.scene.remove(l));
 
         // Ambient
-        const ambient = new THREE.AmbientLight(track.ambientLight, 0.6);
+        const ambient = new THREE.AmbientLight(track.ambientLight, 1.2);
         this.scene.add(ambient);
         this.trackObjects.push(ambient);
 
         // Hemisphere
-        const hemi = new THREE.HemisphereLight(track.skyColor, track.groundColor, 0.4);
+        const hemi = new THREE.HemisphereLight(track.skyColor, track.groundColor, 0.8);
         this.scene.add(hemi);
         this.trackObjects.push(hemi);
 
@@ -980,6 +980,8 @@ class TrackBuilder {
         sun.castShadow = true;
         sun.shadow.mapSize.width = 2048;
         sun.shadow.mapSize.height = 2048;
+        sun.shadow.bias = -0.0002;
+        sun.shadow.normalBias = 0.03;
         sun.shadow.camera.near = 1;
         sun.shadow.camera.far = 500;
         sun.shadow.camera.left = -150;
