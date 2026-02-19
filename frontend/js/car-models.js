@@ -35,6 +35,13 @@ class CarModelLoader {
 
         const loader = new THREE.GLTFLoader();
 
+        // Set up Draco decoder for compressed meshes
+        if (THREE.DRACOLoader) {
+            const dracoLoader = new THREE.DRACOLoader();
+            dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+            loader.setDRACOLoader(dracoLoader);
+        }
+
         for (const def of this._carDefs) {
             let loadedGroup = null;
 

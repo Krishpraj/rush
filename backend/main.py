@@ -236,7 +236,7 @@ def get_online_players():
 def get_runtime_config():
     car_model_url = os.getenv("RUSH_CAR_MODEL_URL", "").strip()
     if not car_model_url:
-        car_model_url = "https://ncy61ofykoro7ctm.public.blob.vercel-storage.com/rush/uploads_files_5387911_f5.glb"
+        car_model_url = "https://ncy61ofykoro7ctm.public.blob.vercel-storage.com/rush/uploads_files_5387911_f5_optimized-ShPgSxqnEyKwAByVvPTY34VYaNRd9H.glb"
     return {
         "car_model_url": car_model_url,
     }

@@ -1,6 +1,20 @@
+# Dependencies
+node_modules/
+package.json
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Environment
+.env
+.env.*
 
 # Local OS metadata
 *:Zone.Identifier
+
 # Keep heavy local model out of git (use Git LFS or external hosting)
 frontend/assets/source/uploads_files_5387911_f5.glb
 .env
