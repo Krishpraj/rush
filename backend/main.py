@@ -34,7 +34,6 @@ players_online: dict = {}
 class CreatePartyRequest(BaseModel):
     host_name: str
     host_peer_id: str
-    host_player_id: Optional[str] = None
     track_id: str = "track_1"
     max_players: int = 6
     car_color: str = "#ff3333"
@@ -43,7 +42,6 @@ class CreatePartyRequest(BaseModel):
 class JoinPartyRequest(BaseModel):
     player_name: str
     player_peer_id: str
-    player_id: Optional[str] = None
     car_color: str = "#3333ff"
 
 
@@ -73,17 +71,14 @@ def generate_party_code(length=5):
 @app.post("/api/party/create")
 def create_party(req: CreatePartyRequest):
     code = generate_party_code()
-    host_player_id = req.host_player_id or req.host_peer_id
     parties[code] = {
         "code": code,
         "host_name": req.host_name,
         "host_peer_id": req.host_peer_id,
-        "host_player_id": host_player_id,
         "track_id": req.track_id,
         "max_players": req.max_players,
         "players": [
             {
-                "player_id": host_player_id,
                 "name": req.host_name,
                 "peer_id": req.host_peer_id,
                 "car_color": req.car_color,
@@ -103,37 +98,15 @@ def join_party(code: str, req: JoinPartyRequest):
     if code not in parties:
         raise HTTPException(status_code=404, detail="Party not found")
     party = parties[code]
-    incoming_player_id = req.player_id or req.player_peer_id
-
-    # Refresh/reconnect: if this logical player already exists, update peer + profile.
-    for p in party["players"]:
-        if p.get("player_id") == incoming_player_id:
-            old_peer_id = p.get("peer_id")
-            p["name"] = req.player_name
-            p["peer_id"] = req.player_peer_id
-            p["car_color"] = req.car_color
-            if p.get("is_host"):
-                party["host_name"] = p["name"]
-                party["host_peer_id"] = p["peer_id"]
-                party["host_player_id"] = p.get("player_id")
-            # Keep previous ready state only if peer did not change.
-            if old_peer_id != req.player_peer_id:
-                p["ready"] = False
-            return {"party": party}
-
     if party["state"] != "waiting":
         raise HTTPException(status_code=400, detail="Race already in progress")
     if len(party["players"]) >= party["max_players"]:
         raise HTTPException(status_code=400, detail="Party is full")
-
     for p in party["players"]:
         if p["peer_id"] == req.player_peer_id:
-            p["name"] = req.player_name
-            p["car_color"] = req.car_color
-            return {"party": party}
+            raise HTTPException(status_code=400, detail="Already in party")
     party["players"].append(
         {
-            "player_id": incoming_player_id,
             "name": req.player_name,
             "peer_id": req.player_peer_id,
             "car_color": req.car_color,
@@ -188,12 +161,7 @@ def leave_party(code: str, peer_id: str):
     if code not in parties:
         raise HTTPException(status_code=404, detail="Party not found")
     party = parties[code]
-    # Accept either transient peer_id or stable player_id.
-    party["players"] = [
-        p
-        for p in party["players"]
-        if p.get("peer_id") != peer_id and p.get("player_id") != peer_id
-    ]
+    party["players"] = [p for p in party["players"] if p["peer_id"] != peer_id]
     if len(party["players"]) == 0:
         del parties[code]
         return {"message": "Party dissolved"}
@@ -202,7 +170,6 @@ def leave_party(code: str, peer_id: str):
         party["players"][0]["is_host"] = True
         party["host_name"] = party["players"][0]["name"]
         party["host_peer_id"] = party["players"][0]["peer_id"]
-        party["host_player_id"] = party["players"][0].get("player_id")
     return {"party": party}
 
 
