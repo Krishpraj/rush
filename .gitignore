@@ -3,3 +3,4 @@
 *:Zone.Identifier
 # Keep heavy local model out of git (use Git LFS or external hosting)
 frontend/assets/source/uploads_files_5387911_f5.glb
+.env

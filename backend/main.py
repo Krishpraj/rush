@@ -231,6 +231,17 @@ def get_online_players():
     return {"players": list(players_online.values()), "count": len(players_online)}
 
 
+# --- Runtime config ---
+@app.get("/api/config")
+def get_runtime_config():
+    car_model_url = os.getenv("RUSH_CAR_MODEL_URL", "").strip()
+    if not car_model_url:
+        car_model_url = "https://ncy61ofykoro7ctm.public.blob.vercel-storage.com/rush/uploads_files_5387911_f5.glb"
+    return {
+        "car_model_url": car_model_url,
+    }
+
+
 # --- Serve frontend ---
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 if os.path.exists(frontend_path):

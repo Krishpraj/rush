@@ -15,10 +15,22 @@
         await game.init(ui, network);
         ui.setLoadingProgress(30, 'Loading physics...');
 
+        let runtimeConfig = {};
+        try {
+            const configResp = await fetch('/api/config');
+            if (configResp.ok) {
+                runtimeConfig = await configResp.json();
+            }
+        } catch (e) {
+            console.warn('[Rush] Runtime config unavailable, using defaults:', e);
+        }
+
         // Load car models (non-blocking — fallback to procedural if GLB fails)
         ui.setLoadingProgress(40, 'Loading car models...');
         try {
-            const carLoader = new CarModelLoader();
+            const carLoader = new CarModelLoader({
+                carModelUrl: runtimeConfig.car_model_url || '',
+            });
             await carLoader.load();
             window._carModelLoader = carLoader;
             console.log('[Rush] Car models loaded:', carLoader.getCount());
