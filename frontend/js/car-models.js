@@ -4,16 +4,24 @@
  */
 
 class CarModelLoader {
-    constructor() {
+    constructor(config = {}) {
         this.loaded = false;
         this.models = [];
+
+        const runtimeUrl = (config.carModelUrl || '').trim();
+        const urls = [
+            '/assets/source/uploads_files_5387911_f5.glb',
+            '/assets/uploads_files_5387911_f5.glb',
+            '/frontend/assets/source/uploads_files_5387911_f5.glb',
+        ];
+        if (runtimeUrl) {
+            urls.unshift(runtimeUrl);
+        }
+
         this._carDefs = [
             {
                 name: 'F5 Racer',
-                urls: [
-                    '/assets/source/uploads_files_5387911_f5.glb',
-                    '/assets/uploads_files_5387911_f5.glb',
-                ],
+                urls,
             },
         ];
     }
