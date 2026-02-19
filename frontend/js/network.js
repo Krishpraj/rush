@@ -72,9 +72,70 @@ class NetworkManager {
 
     // --- Party Management (via backend API) ---
 
+    _delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async _requestJson(url, options = {}, config = {}) {
+        const {
+            retries = 0,
+            retryDelayMs = 300,
+            retryOnStatuses = [502, 503, 504],
+            retryOnNotFoundDetail = [],
+        } = config;
+
+        let lastError = null;
+
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const resp = await fetch(url, options);
+                let data = {};
+
+                try {
+                    data = await resp.json();
+                } catch {
+                    data = {};
+                }
+
+                if (resp.ok) {
+                    return { resp, data };
+                }
+
+                const detail = data.detail || data.message || `HTTP ${resp.status}`;
+                const canRetryByStatus = retryOnStatuses.includes(resp.status);
+                const canRetryNotFound =
+                    resp.status === 404 &&
+                    retryOnNotFoundDetail.some(msg => String(detail).toLowerCase().includes(msg.toLowerCase()));
+
+                if (attempt < retries && (canRetryByStatus || canRetryNotFound)) {
+                    await this._delay(retryDelayMs * (attempt + 1));
+                    continue;
+                }
+
+                throw new Error(detail);
+            } catch (err) {
+                const msg = String(err?.message || '');
+                const isNetworkError =
+                    err instanceof TypeError ||
+                    msg.toLowerCase().includes('failed to fetch') ||
+                    msg.toLowerCase().includes('network');
+
+                if (attempt < retries && isNetworkError) {
+                    await this._delay(retryDelayMs * (attempt + 1));
+                    continue;
+                }
+
+                lastError = err;
+                break;
+            }
+        }
+
+        throw lastError || new Error('Request failed');
+    }
+
     async createParty(trackId) {
         try {
-            const resp = await fetch('/api/party/create', {
+            const { data } = await this._requestJson('/api/party/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -84,8 +145,10 @@ class NetworkManager {
                     track_id: trackId,
                     car_color: this.carColor,
                 }),
+            }, {
+                retries: 3,
+                retryDelayMs: 400,
             });
-            const data = await resp.json();
             this.partyCode = data.code;
             this.isHost = true;
             console.log('[Network] Party created:', this.partyCode);
@@ -102,7 +165,7 @@ class NetworkManager {
 
     async joinParty(code) {
         try {
-            const resp = await fetch(`/api/party/${code}/join`, {
+            const { data } = await this._requestJson(`/api/party/${code}/join`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -111,12 +174,11 @@ class NetworkManager {
                     player_id: this.playerId,
                     car_color: this.carColor,
                 }),
+            }, {
+                retries: 5,
+                retryDelayMs: 500,
+                retryOnNotFoundDetail: ['party not found'],
             });
-            if (!resp.ok) {
-                const err = await resp.json();
-                throw new Error(err.detail || 'Failed to join');
-            }
-            const data = await resp.json();
             this.partyCode = code.toUpperCase();
             this.isHost = false;
 
@@ -130,6 +192,9 @@ class NetworkManager {
             this._startPartyPolling();
             return data;
         } catch (err) {
+            if (String(err?.message || '').toLowerCase().includes('party not found')) {
+                throw new Error('Party not found. It may have expired after a server restart—ask host to recreate it.');
+            }
             console.error('[Network] Join party error:', err);
             throw err;
         }
@@ -138,9 +203,11 @@ class NetworkManager {
     async getParty() {
         if (!this.partyCode) return null;
         try {
-            const resp = await fetch(`/api/party/${this.partyCode}`);
-            if (!resp.ok) return null;
-            const data = await resp.json();
+            const { data } = await this._requestJson(`/api/party/${this.partyCode}`, {}, {
+                retries: 2,
+                retryDelayMs: 350,
+                retryOnNotFoundDetail: ['party not found'],
+            });
             return data.party;
         } catch {
             return null;
