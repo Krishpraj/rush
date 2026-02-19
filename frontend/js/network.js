@@ -7,6 +7,7 @@ class NetworkManager {
     constructor() {
         this.peer = null;
         this.peerId = null;
+        this.playerId = this._getOrCreatePlayerId();
         this.connections = new Map(); // peerId -> DataConnection
         this.isHost = false;
         this.partyCode = null;
@@ -79,6 +80,7 @@ class NetworkManager {
                 body: JSON.stringify({
                     host_name: this.playerName,
                     host_peer_id: this.peerId,
+                    host_player_id: this.playerId,
                     track_id: trackId,
                     car_color: this.carColor,
                 }),
@@ -106,6 +108,7 @@ class NetworkManager {
                 body: JSON.stringify({
                     player_name: this.playerName,
                     player_peer_id: this.peerId,
+                    player_id: this.playerId,
                     car_color: this.carColor,
                 }),
             });
@@ -145,9 +148,9 @@ class NetworkManager {
     }
 
     async leaveParty() {
-        if (!this.partyCode || !this.peerId) return;
+        if (!this.partyCode || !this.playerId) return;
         try {
-            await fetch(`/api/party/${this.partyCode}/leave/${this.peerId}`, {
+            await fetch(`/api/party/${this.partyCode}/leave/${this.playerId}`, {
                 method: 'DELETE',
             });
         } catch { }
@@ -325,6 +328,19 @@ class NetworkManager {
             try { conn.close(); } catch { }
         }
         this.connections.clear();
+    }
+
+    _getOrCreatePlayerId() {
+        try {
+            const key = 'rush_player_id';
+            const existing = localStorage.getItem(key);
+            if (existing) return existing;
+            const generated = `p_${Math.random().toString(36).slice(2, 12)}${Date.now().toString(36).slice(-4)}`;
+            localStorage.setItem(key, generated);
+            return generated;
+        } catch {
+            return `p_${Math.random().toString(36).slice(2, 12)}`;
+        }
     }
 
     // --- Sync Loop ---
