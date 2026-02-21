@@ -1281,9 +1281,9 @@ class TrackBuilder {
                     group.add(led);
                     checkpointStrips.push(led);
                 }
-                for (let side = -1; side <= 1; side += 2) {
+                {
                     const lt = new THREE.PointLight(0xffffff, 0.5, 12, 2);
-                    lt.position.set(side * pillarHalfSpan * 0.5, archH + 0.5, 0);
+                    lt.position.set(0, archH + 0.5, 0);
                     group.add(lt);
                     checkpointLights.push(lt);
                 }
@@ -1321,9 +1321,9 @@ class TrackBuilder {
                 uline.position.set(0, archH - 0.05, 0);
                 group.add(uline);
                 checkpointStrips.push(uline);
-                for (let side = -1; side <= 1; side += 2) {
+                {
                     const lt = new THREE.PointLight(0xff7700, 0.4, 10, 2);
-                    lt.position.set(side * pillarHalfSpan * 0.5, archH + 0.3, 0);
+                    lt.position.set(0, archH + 0.3, 0);
                     group.add(lt);
                     checkpointLights.push(lt);
                 }
@@ -1336,20 +1336,21 @@ class TrackBuilder {
                     color: 0x00ccff, emissive: 0x0088ff, emissiveIntensity: 0.5, roughness: 0.3,
                 });
                 for (let side = -1; side <= 1; side += 2) {
-                    const pg = new THREE.CylinderGeometry(0.18, 0.22, poleH, 8);
+                    const pg = new THREE.CylinderGeometry(0.18, 0.22, poleH, 6);
                     const pole = new THREE.Mesh(pg, poleMat);
                     pole.position.set(side * pillarHalfSpan, poleH / 2, 0);
                     pole.castShadow = true;
                     group.add(pole);
                     checkpointPosts.push(pole);
-                    // Glowing top cap
-                    const cg = new THREE.SphereGeometry(0.35, 8, 6);
+                    const cg = new THREE.SphereGeometry(0.35, 6, 4);
                     const cap = new THREE.Mesh(cg, topMat);
                     cap.position.set(side * pillarHalfSpan, poleH + 0.2, 0);
                     group.add(cap);
                     checkpointStrips.push(cap);
+                }
+                {
                     const lt = new THREE.PointLight(0x00aaff, 0.5, 8, 2);
-                    lt.position.set(side * pillarHalfSpan, poleH + 0.4, 0);
+                    lt.position.set(0, poleH + 0.4, 0);
                     group.add(lt);
                     checkpointLights.push(lt);
                 }
@@ -1533,10 +1534,9 @@ class TrackBuilder {
             group.add(led);
         }
 
-        // Lights
-        for (let side = -1; side <= 1; side += 2) {
+        {
             const light = new THREE.PointLight(0xffffff, 0.6, 15, 2);
-            light.position.set(side * finishHalfSpan * 0.5, archH + 0.8, 0);
+            light.position.set(0, archH + 0.8, 0);
             group.add(light);
         }
 
@@ -1563,10 +1563,10 @@ class TrackBuilder {
     }
 
     _populateGrid(track) {
-        const cellSize = 14;
+        const cellSize = 18;
         const hw = this.trackHalfWidth;
-        const minDist = hw + 2;
-        const maxDist = 200;
+        const minDist = hw + 3;
+        const maxDist = 160;
         const theme = track.gridTheme || 'nature';
 
         const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
@@ -1630,7 +1630,7 @@ class TrackBuilder {
             [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
         }
 
-        const maxPlacements = Math.min(400, eligible.length);
+        const maxPlacements = Math.min(300, eligible.length);
         const variationFns = theme === 'urban' ? this._urbanVariations() : this._natureVariations();
         const varCount = variationFns.length;
 
@@ -1703,6 +1703,16 @@ class TrackBuilder {
         ];
     }
 
+    // Shared material cache - MeshLambertMaterial is much cheaper than MeshStandardMaterial
+    _gm(color) {
+        if (!this._gridMatCache) this._gridMatCache = {};
+        const key = typeof color === 'number' ? color : color.getHex();
+        if (!this._gridMatCache[key]) {
+            this._gridMatCache[key] = new THREE.MeshLambertMaterial({ color });
+        }
+        return this._gridMatCache[key];
+    }
+
     // === URBAN GRID VARIATIONS ===
 
     _gridUrbanBuilding(x, z, rng, s) {
@@ -1710,13 +1720,7 @@ class TrackBuilder {
         const h = 10 + rng(s + 10) * 18;
         const w = 6 + rng(s + 20) * 4;
         const d = 6 + rng(s + 30) * 4;
-        const hue = 0.55 + rng(s + 40) * 0.15;
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(w, h, d),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(hue, 0.06, 0.15 + rng(s + 50) * 0.1), roughness: 0.8
-            })
-        );
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), this._gm(0x2a2a35));
         body.position.y = h / 2;
         g.add(body);
         g.position.set(x, 0, z);
@@ -1727,18 +1731,10 @@ class TrackBuilder {
         const g = new THREE.Group();
         const h = 20 + rng(s + 10) * 20;
         const w = 5 + rng(s + 20) * 3;
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(w, h, w),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.6, 0.05, 0.2), roughness: 0.7
-            })
-        );
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), this._gm(0x2a2a38));
         body.position.y = h / 2;
         g.add(body);
-        const roof = new THREE.Mesh(
-            new THREE.BoxGeometry(w * 0.4, 1.5, w * 0.4),
-            new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 })
-        );
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 0.4, 1.5, w * 0.4), this._gm(0x444444));
         roof.position.y = h + 0.75;
         g.add(roof);
         g.position.set(x, 0, z);
@@ -1747,10 +1743,7 @@ class TrackBuilder {
 
     _gridUrbanParking(x, z, rng, s) {
         const g = new THREE.Group();
-        const lot = new THREE.Mesh(
-            new THREE.PlaneGeometry(10, 8),
-            new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 })
-        );
+        const lot = new THREE.Mesh(new THREE.PlaneGeometry(10, 8), this._gm(0x333333));
         lot.rotation.x = -Math.PI / 2;
         lot.position.y = 0.02;
         g.add(lot);
@@ -1761,18 +1754,9 @@ class TrackBuilder {
 
     _gridUrbanDumpster(x, z, rng, s) {
         const g = new THREE.Group();
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(1.8, 1.2, 1.0),
-            new THREE.MeshStandardMaterial({ color: 0x2a6a2a, roughness: 0.8 })
-        );
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 1.0), this._gm(0x2a6a2a));
         body.position.y = 0.6;
         g.add(body);
-        const lid = new THREE.Mesh(
-            new THREE.BoxGeometry(1.85, 0.08, 1.05),
-            new THREE.MeshStandardMaterial({ color: 0x1a4a1a, roughness: 0.7 })
-        );
-        lid.position.y = 1.24;
-        g.add(lid);
         g.position.set(x, 0, z);
         g.rotation.y = rng(s + 10) * Math.PI * 2;
         return g;
@@ -1780,19 +1764,12 @@ class TrackBuilder {
 
     _gridUrbanBench(x, z, rng, s) {
         const g = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.85 });
-        const seat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.5), mat);
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.5), this._gm(0x8B6914));
         seat.position.y = 0.45;
         g.add(seat);
-        const back = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.5, 0.06), mat);
+        const back = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.5, 0.06), this._gm(0x8B6914));
         back.position.set(0, 0.7, -0.22);
         g.add(back);
-        const legMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 });
-        for (const lx of [-0.7, 0.7]) {
-            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.5), legMat);
-            leg.position.set(lx, 0.225, 0);
-            g.add(leg);
-        }
         g.position.set(x, 0, z);
         g.rotation.y = rng(s + 10) * Math.PI * 2;
         return g;
@@ -1801,14 +1778,10 @@ class TrackBuilder {
     _gridUrbanLamppost(x, z, rng, s) {
         const g = new THREE.Group();
         const h = 5 + rng(s + 10) * 2;
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.5, roughness: 0.4 });
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, h, 6), poleMat);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, h, 5), this._gm(0x444444));
         pole.position.y = h / 2;
         g.add(pole);
-        const lamp = new THREE.Mesh(
-            new THREE.BoxGeometry(0.8, 0.15, 0.3),
-            new THREE.MeshStandardMaterial({ color: 0xeeeeee, emissive: 0xffeecc, emissiveIntensity: 0.3 })
-        );
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.3), this._gm(0xeeeeee));
         lamp.position.set(0.3, h - 0.2, 0);
         g.add(lamp);
         g.position.set(x, 0, z);
@@ -1819,10 +1792,7 @@ class TrackBuilder {
         const g = new THREE.Group();
         const colors = [0xcc2222, 0x2255aa, 0xcc8822, 0x228844];
         const ci = Math.floor(rng(s + 10) * colors.length);
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(6, 2.5, 2.4),
-            new THREE.MeshStandardMaterial({ color: colors[ci], roughness: 0.7, metalness: 0.3 })
-        );
+        const body = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 2.4), this._gm(colors[ci]));
         body.position.y = 1.25;
         g.add(body);
         g.position.set(x, 0, z);
@@ -1833,16 +1803,9 @@ class TrackBuilder {
     _gridUrbanFence(x, z, rng, s) {
         const g = new THREE.Group();
         const len = 5 + rng(s + 10) * 4;
-        const mat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5, roughness: 0.4 });
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 1.5, 0.05), mat);
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 1.5, 0.05), this._gm(0x888888));
         rail.position.y = 0.75;
         g.add(rail);
-        for (let i = 0; i < 3; i++) {
-            const px = i * (len / 2) - len / 2;
-            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.6, 5), mat);
-            post.position.set(px, 0.8, 0);
-            g.add(post);
-        }
         g.position.set(x, 0, z);
         g.rotation.y = rng(s + 20) * Math.PI;
         return g;
@@ -1850,9 +1813,8 @@ class TrackBuilder {
 
     _gridUrbanCones(x, z, rng, s) {
         const g = new THREE.Group();
-        const coneMat = new THREE.MeshStandardMaterial({ color: 0xff5500, roughness: 0.6 });
         for (let i = 0; i < 3; i++) {
-            const cone = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.6, 6), coneMat);
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.6, 5), this._gm(0xff5500));
             cone.position.set((rng(s + 10 + i) - 0.5) * 3, 0.3, (rng(s + 20 + i) - 0.5) * 3);
             g.add(cone);
         }
@@ -1865,18 +1827,9 @@ class TrackBuilder {
         const w = 8 + rng(s + 10) * 5;
         const h = 4 + rng(s + 20) * 3;
         const d = 6 + rng(s + 30) * 4;
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(w, h, d),
-            new THREE.MeshStandardMaterial({ color: 0x6a6a6a, roughness: 0.85 })
-        );
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), this._gm(0x6a6a6a));
         body.position.y = h / 2;
         g.add(body);
-        const door = new THREE.Mesh(
-            new THREE.PlaneGeometry(2.5, h * 0.8),
-            new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.7 })
-        );
-        door.position.set(0, h * 0.4, d / 2 + 0.01);
-        g.add(door);
         g.position.set(x, 0, z);
         g.rotation.y = rng(s + 40) * Math.PI * 2;
         return g;
@@ -1884,34 +1837,19 @@ class TrackBuilder {
 
     _gridUrbanAC(x, z, rng, s) {
         const g = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.6, metalness: 0.3 });
-        const unit = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 0.8), mat);
+        const unit = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 0.8), this._gm(0xaaaaaa));
         unit.position.y = 0.4;
         g.add(unit);
-        const fan = new THREE.Mesh(
-            new THREE.CircleGeometry(0.25, 8),
-            new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 })
-        );
-        fan.position.set(0, 0.4, 0.41);
-        g.add(fan);
         g.position.set(x, 0, z);
         return g;
     }
 
     _gridUrbanPlanter(x, z, rng, s) {
         const g = new THREE.Group();
-        const pot = new THREE.Mesh(
-            new THREE.BoxGeometry(1.2, 0.6, 1.2),
-            new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.8 })
-        );
+        const pot = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 1.2), this._gm(0x777777));
         pot.position.y = 0.3;
         g.add(pot);
-        const bush = new THREE.Mesh(
-            new THREE.SphereGeometry(0.6, 5, 4),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.3, 0.5, 0.25), roughness: 0.85
-            })
-        );
+        const bush = new THREE.Mesh(new THREE.SphereGeometry(0.6, 4, 3), this._gm(0x2a5a1a));
         bush.scale.y = 0.7;
         bush.position.y = 0.9;
         g.add(bush);
@@ -1921,18 +1859,9 @@ class TrackBuilder {
 
     _gridUrbanBarricade(x, z, rng, s) {
         const g = new THREE.Group();
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(1.5, 0.8, 0.4),
-            new THREE.MeshStandardMaterial({ color: 0xff8800, roughness: 0.7 })
-        );
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 0.4), this._gm(0xff8800));
         body.position.y = 0.4;
         g.add(body);
-        const stripe = new THREE.Mesh(
-            new THREE.BoxGeometry(1.5, 0.15, 0.42),
-            new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 })
-        );
-        stripe.position.y = 0.4;
-        g.add(stripe);
         g.position.set(x, 0, z);
         g.rotation.y = rng(s + 10) * Math.PI;
         return g;
@@ -1940,14 +1869,13 @@ class TrackBuilder {
 
     _gridUrbanSignpost(x, z, rng, s) {
         const g = new THREE.Group();
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.4, roughness: 0.5 });
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3, 5), poleMat);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3, 4), this._gm(0x666666));
         pole.position.y = 1.5;
         g.add(pole);
         const colors = [0x2255cc, 0xcc2222, 0x22aa44, 0xdddd22];
         const sign = new THREE.Mesh(
             new THREE.BoxGeometry(0.8, 0.6, 0.05),
-            new THREE.MeshStandardMaterial({ color: colors[Math.floor(rng(s + 10) * 4)], roughness: 0.5 })
+            this._gm(colors[Math.floor(rng(s + 10) * 4)])
         );
         sign.position.y = 2.8;
         g.add(sign);
@@ -1957,16 +1885,10 @@ class TrackBuilder {
 
     _gridUrbanMailbox(x, z, rng, s) {
         const g = new THREE.Group();
-        const post = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.05, 0.05, 1.0, 5),
-            new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7 })
-        );
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0, 4), this._gm(0x555555));
         post.position.y = 0.5;
         g.add(post);
-        const box = new THREE.Mesh(
-            new THREE.BoxGeometry(0.4, 0.35, 0.3),
-            new THREE.MeshStandardMaterial({ color: 0x2244aa, roughness: 0.6 })
-        );
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.3), this._gm(0x2244aa));
         box.position.y = 1.17;
         g.add(box);
         g.position.set(x, 0, z);
@@ -1975,27 +1897,17 @@ class TrackBuilder {
 
     _gridUrbanTrashcan(x, z, rng, s) {
         const g = new THREE.Group();
-        const can = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.25, 0.3, 0.8, 7),
-            new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 })
-        );
+        const can = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.8, 6), this._gm(0x444444));
         can.position.y = 0.4;
         g.add(can);
-        const lid = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.28, 0.25, 0.06, 7),
-            new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 })
-        );
-        lid.position.y = 0.83;
-        g.add(lid);
         g.position.set(x, 0, z);
         return g;
     }
 
     _gridUrbanBollards(x, z, rng, s) {
         const g = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.4, roughness: 0.5 });
         for (let i = 0; i < 3; i++) {
-            const b = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.7, 6), mat);
+            const b = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.7, 5), this._gm(0x888888));
             b.position.set(i * 1.2 - 1.2, 0.35, 0);
             g.add(b);
         }
@@ -2008,16 +1920,10 @@ class TrackBuilder {
         const g = new THREE.Group();
         const w = 3 + rng(s + 10) * 2;
         const h = 2.5 + rng(s + 20) * 1;
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(w, h, w * 0.8),
-            new THREE.MeshStandardMaterial({ color: 0x7a6a5a, roughness: 0.85 })
-        );
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, w * 0.8), this._gm(0x7a6a5a));
         body.position.y = h / 2;
         g.add(body);
-        const roof = new THREE.Mesh(
-            new THREE.BoxGeometry(w + 0.3, 0.15, w * 0.85),
-            new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7 })
-        );
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.15, w * 0.85), this._gm(0x555555));
         roof.position.y = h + 0.07;
         g.add(roof);
         g.position.set(x, 0, z);
@@ -2031,19 +1937,11 @@ class TrackBuilder {
         const g = new THREE.Group();
         const sc = 0.8 + rng(s + 20) * 0.5;
         const trH = 3.0 * sc;
-        const trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.2 * sc, 0.4 * sc, trH, 5),
-            new THREE.MeshStandardMaterial({ color: 0x6B3410, roughness: 0.95 })
-        );
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * sc, 0.4 * sc, trH, 5), this._gm(0x6B3410));
         trunk.position.y = trH / 2;
         g.add(trunk);
         const cr = 2.5 * sc;
-        const crown = new THREE.Mesh(
-            new THREE.SphereGeometry(cr, 5, 4),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.27 + rng(s + 50) * 0.08, 0.6, 0.25), roughness: 0.85
-            })
-        );
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(cr, 5, 4), this._gm(0x2a5a1a));
         crown.position.y = trH + cr * 0.6;
         g.add(crown);
         g.position.set(x, 0, z);
@@ -2054,18 +1952,13 @@ class TrackBuilder {
         const g = new THREE.Group();
         const sc = 0.7 + rng(s + 20) * 0.6;
         const trH = 3.5 * sc;
-        const trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.15 * sc, 0.3 * sc, trH, 5),
-            new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.95 })
-        );
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * sc, 0.3 * sc, trH, 5), this._gm(0x5a3a1a));
         trunk.position.y = trH / 2;
         g.add(trunk);
-        const col = new THREE.Color().setHSL(0.32, 0.5, 0.18 + rng(s + 60) * 0.06);
-        const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.9 });
         for (let t = 0; t < 2; t++) {
             const r = (2.2 - t * 0.7) * sc;
             const h = (2.8 - t * 0.5) * sc;
-            const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), mat);
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), this._gm(0x1a4a1a));
             cone.position.y = trH + t * 1.8 * sc + h / 2;
             g.add(cone);
         }
@@ -2076,14 +1969,11 @@ class TrackBuilder {
     _gridRockyOutcrop(x, z, rng, s) {
         const g = new THREE.Group();
         const count = 2 + Math.floor(rng(s + 10) * 2);
-        const mat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color().setHSL(0.07, 0.06, 0.35), roughness: 0.92
-        });
         for (let i = 0; i < count; i++) {
             const sz = 1.0 + rng(s + 20 + i) * 1.5;
             const geo = new THREE.DodecahedronGeometry(sz, 0);
             geo.scale(1, 0.5, 0.85);
-            const m = new THREE.Mesh(geo, mat);
+            const m = new THREE.Mesh(geo, this._gm(0x5a5a55));
             m.position.set((rng(s + 30 + i) - 0.5) * 5, sz * 0.25, (rng(s + 40 + i) - 0.5) * 5);
             m.rotation.y = rng(s + 90 + i) * Math.PI * 2;
             g.add(m);
@@ -2096,14 +1986,10 @@ class TrackBuilder {
         const g = new THREE.Group();
         const colors = [0xff6699, 0xffcc33, 0xcc66ff, 0xff4444, 0xffaa00];
         const count = 5 + Math.floor(rng(s + 10) * 4);
-        const stemMat = new THREE.MeshStandardMaterial({ color: 0x338833, roughness: 0.9 });
         for (let i = 0; i < count; i++) {
             const ci = Math.floor(rng(s + 20 + i) * colors.length);
             const r = 0.18 + rng(s + 30 + i) * 0.15;
-            const flower = new THREE.Mesh(
-                new THREE.SphereGeometry(r, 4, 3),
-                new THREE.MeshStandardMaterial({ color: colors[ci], roughness: 0.7 })
-            );
+            const flower = new THREE.Mesh(new THREE.SphereGeometry(r, 3, 3), this._gm(colors[ci]));
             const stemH = 0.3 + rng(s + 40 + i) * 0.3;
             flower.position.set((rng(s + 50 + i) - 0.5) * 8, stemH + r, (rng(s + 60 + i) - 0.5) * 8);
             g.add(flower);
@@ -2114,11 +2000,8 @@ class TrackBuilder {
 
     _gridTallGrass(x, z, rng, s) {
         const g = new THREE.Group();
-        const count = 6;
-        const grassMat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color().setHSL(0.28, 0.5, 0.32), roughness: 0.85, side: THREE.DoubleSide
-        });
-        for (let i = 0; i < count; i++) {
+        const grassMat = this._gm(0x4a6a3a);
+        for (let i = 0; i < 6; i++) {
             const h = 0.6 + rng(s + 20 + i) * 0.8;
             const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.15, h), grassMat);
             blade.position.set((rng(s + 30 + i) - 0.5) * 6, h / 2, (rng(s + 40 + i) - 0.5) * 6);
@@ -2133,10 +2016,7 @@ class TrackBuilder {
         const g = new THREE.Group();
         const len = 3 + rng(s + 10) * 2;
         const r = 0.25 + rng(s + 20) * 0.15;
-        const log = new THREE.Mesh(
-            new THREE.CylinderGeometry(r, r * 1.1, len, 6),
-            new THREE.MeshStandardMaterial({ color: 0x6B4226, roughness: 0.9 })
-        );
+        const log = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, len, 5), this._gm(0x6B4226));
         log.rotation.z = Math.PI / 2;
         log.position.y = r;
         g.add(log);
@@ -2150,9 +2030,7 @@ class TrackBuilder {
         const sz = 1.5 + rng(s + 20) * 2.0;
         const geo = new THREE.DodecahedronGeometry(sz, 0);
         geo.scale(1, 0.5, 0.9);
-        const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-            color: new THREE.Color().setHSL(0.06, 0.08, 0.32), roughness: 0.95
-        }));
+        const m = new THREE.Mesh(geo, this._gm(0x5a5a50));
         m.position.y = sz * 0.25;
         m.rotation.y = rng(s + 60) * Math.PI * 2;
         g.add(m);
@@ -2164,28 +2042,15 @@ class TrackBuilder {
         const g = new THREE.Group();
         const sc = 0.7 + rng(s + 10) * 0.4;
         const trH = 3.2 * sc;
-        const trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.2 * sc, 0.4 * sc, trH, 5),
-            new THREE.MeshStandardMaterial({ color: 0x6B3410, roughness: 0.95 })
-        );
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * sc, 0.4 * sc, trH, 5), this._gm(0x6B3410));
         trunk.position.y = trH / 2;
         g.add(trunk);
         const crR = 2.0 * sc;
-        const crown = new THREE.Mesh(
-            new THREE.SphereGeometry(crR, 5, 4),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.28, 0.6, 0.25), roughness: 0.85
-            })
-        );
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(crR, 5, 4), this._gm(0x2a5a1a));
         crown.position.y = trH + crR * 0.6;
         g.add(crown);
         const bSc = 0.5 + rng(s + 50) * 0.3;
-        const bush = new THREE.Mesh(
-            new THREE.SphereGeometry(bSc, 4, 3),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.29, 0.55, 0.22), roughness: 0.9
-            })
-        );
+        const bush = new THREE.Mesh(new THREE.SphereGeometry(bSc, 4, 3), this._gm(0x1a4a15));
         bush.scale.y = 0.65;
         bush.position.set((rng(s + 60) - 0.5) * 4, bSc * 0.4, (rng(s + 70) - 0.5) * 4);
         g.add(bush);
@@ -2196,10 +2061,7 @@ class TrackBuilder {
     _gridHayBales(x, z, rng, s) {
         const g = new THREE.Group();
         const r = 0.65 + rng(s + 20) * 0.25;
-        const bale = new THREE.Mesh(
-            new THREE.CylinderGeometry(r, r, r * 1.2, 8),
-            new THREE.MeshStandardMaterial({ color: 0xc8a84e, roughness: 0.9 })
-        );
+        const bale = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r * 1.2, 7), this._gm(0xc8a84e));
         bale.rotation.z = Math.PI / 2;
         bale.position.y = r;
         g.add(bale);
@@ -2209,11 +2071,10 @@ class TrackBuilder {
 
     _gridCrateStack(x, z, rng, s) {
         const g = new THREE.Group();
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.85 });
-        const crate = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 1.2), woodMat);
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 1.2), this._gm(0x8B6914));
         crate.position.y = 0.5;
         g.add(crate);
-        const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), woodMat);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), this._gm(0x8B6914));
         top.position.y = 1.35;
         top.rotation.y = 0.3;
         g.add(top);
@@ -2223,21 +2084,14 @@ class TrackBuilder {
 
     _gridCampfire(x, z, rng, s) {
         const g = new THREE.Group();
-        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x666660, roughness: 0.9 });
         for (let i = 0; i < 5; i++) {
             const a = (i / 5) * Math.PI * 2;
-            const stone = new THREE.Mesh(new THREE.SphereGeometry(0.25, 4, 3), stoneMat);
+            const stone = new THREE.Mesh(new THREE.SphereGeometry(0.25, 3, 3), this._gm(0x666660));
             stone.position.set(Math.cos(a) * 0.9, 0.12, Math.sin(a) * 0.9);
             stone.scale.y = 0.6;
             g.add(stone);
         }
-        const flame = new THREE.Mesh(
-            new THREE.ConeGeometry(0.2, 0.7, 5),
-            new THREE.MeshStandardMaterial({
-                color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.6,
-                transparent: true, opacity: 0.8
-            })
-        );
+        const flame = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.7, 4), this._gm(0xff6600));
         flame.position.y = 0.45;
         g.add(flame);
         g.position.set(x, 0, z);
@@ -2246,17 +2100,11 @@ class TrackBuilder {
 
     _gridStoneRuins(x, z, rng, s) {
         const g = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color().setHSL(0.08, 0.06, 0.4), roughness: 0.95
-        });
         const wallH = 1.0 + rng(s + 10) * 1.5;
         const wallL = 3 + rng(s + 20) * 3;
-        const wall = new THREE.Mesh(new THREE.BoxGeometry(wallL, wallH, 0.5), mat);
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(wallL, wallH, 0.5), this._gm(0x6a6a60));
         wall.position.y = wallH / 2;
         g.add(wall);
-        const debris = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.5), mat);
-        debris.position.set(wallL * 0.4, 0.2, 1);
-        g.add(debris);
         g.position.set(x, 0, z);
         g.rotation.y = rng(s + 100) * Math.PI * 2;
         return g;
@@ -2265,13 +2113,12 @@ class TrackBuilder {
     _gridMiniPond(x, z, rng, s) {
         const g = new THREE.Group();
         const r = 2 + rng(s + 10) * 2;
-        const water = new THREE.Mesh(
-            new THREE.CircleGeometry(r, 10),
-            new THREE.MeshStandardMaterial({
-                color: 0x2266aa, roughness: 0.15, metalness: 0.4,
-                transparent: true, opacity: 0.75
-            })
-        );
+        if (!this._pondMat) {
+            this._pondMat = new THREE.MeshLambertMaterial({
+                color: 0x2266aa, transparent: true, opacity: 0.75
+            });
+        }
+        const water = new THREE.Mesh(new THREE.CircleGeometry(r, 8), this._pondMat);
         water.rotation.x = -Math.PI / 2;
         water.position.y = 0.02;
         g.add(water);
@@ -2283,12 +2130,7 @@ class TrackBuilder {
         const g = new THREE.Group();
         const r = 2 + rng(s + 10) * 2;
         const h = 0.8 + rng(s + 20) * 1.2;
-        const mound = new THREE.Mesh(
-            new THREE.SphereGeometry(r, 6, 4),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.08, 0.3, 0.25 + rng(s + 30) * 0.1), roughness: 0.95
-            })
-        );
+        const mound = new THREE.Mesh(new THREE.SphereGeometry(r, 5, 4), this._gm(0x4a3a2a));
         mound.scale.y = h / r;
         mound.position.y = -r * 0.1;
         g.add(mound);
@@ -2300,17 +2142,13 @@ class TrackBuilder {
         const g = new THREE.Group();
         const len = 4 + rng(s + 10) * 4;
         const h = 1.0;
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.85 });
         for (let i = 0; i < 3; i++) {
             const px = i * (len / 2) - len / 2;
-            const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, h + 0.2, 0.14), postMat);
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, h + 0.2, 0.14), this._gm(0x8B7355));
             post.position.set(px, (h + 0.2) / 2, 0);
             g.add(post);
         }
-        const rail = new THREE.Mesh(
-            new THREE.BoxGeometry(len, 0.07, 0.07),
-            new THREE.MeshStandardMaterial({ color: 0x9B8365, roughness: 0.85 })
-        );
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.07, 0.07), this._gm(0x9B8365));
         rail.position.y = h * 0.6;
         g.add(rail);
         g.position.set(x, 0, z);
@@ -2320,9 +2158,8 @@ class TrackBuilder {
 
     _gridTireStack(x, z, rng, s) {
         const g = new THREE.Group();
-        const tireMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.85 });
         for (let i = 0; i < 3; i++) {
-            const tire = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.12, 5, 7), tireMat);
+            const tire = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.12, 4, 6), this._gm(0x222222));
             tire.position.set(i * 0.65 - 0.65, 0.32, 0);
             tire.rotation.x = Math.PI / 2;
             g.add(tire);
@@ -2336,16 +2173,13 @@ class TrackBuilder {
         const g = new THREE.Group();
         const sc = 0.8 + rng(s + 10) * 0.4;
         const trH = 4.0 * sc;
-        const mat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.95 });
-        const trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.12 * sc, 0.35 * sc, trH, 5), mat
-        );
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * sc, 0.35 * sc, trH, 5), this._gm(0x5a4a3a));
         trunk.position.y = trH / 2;
         g.add(trunk);
         for (let i = 0; i < 2; i++) {
             const bLen = 1.2 + rng(s + 20 + i) * 1.0;
             const branch = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.02 * sc, 0.05 * sc, bLen * sc, 4), mat
+                new THREE.CylinderGeometry(0.02 * sc, 0.05 * sc, bLen * sc, 3), this._gm(0x5a4a3a)
             );
             const bY = trH * (0.55 + i * 0.2);
             const bAngle = rng(s + 50 + i) * Math.PI * 2;
@@ -2360,12 +2194,9 @@ class TrackBuilder {
 
     _gridHedgeRow(x, z, rng, s) {
         const g = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color().setHSL(0.29, 0.55, 0.2), roughness: 0.88
-        });
         const w = 3 + rng(s + 30) * 2;
         const h = 1.2 + rng(s + 40) * 0.4;
-        const hedge = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1.2), mat);
+        const hedge = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1.2), this._gm(0x1a4a15));
         hedge.position.y = h / 2;
         g.add(hedge);
         g.position.set(x, 0, z);
@@ -2377,19 +2208,11 @@ class TrackBuilder {
         const g = new THREE.Group();
         const sc = 0.8 + rng(s + 20) * 0.3;
         const trH = 4.5 * sc;
-        const trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.1 * sc, 0.16 * sc, trH, 5),
-            new THREE.MeshStandardMaterial({ color: 0xddd8c8, roughness: 0.7 })
-        );
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * sc, 0.16 * sc, trH, 5), this._gm(0xddd8c8));
         trunk.position.y = trH / 2;
         g.add(trunk);
         const crR = 1.5 * sc;
-        const crown = new THREE.Mesh(
-            new THREE.SphereGeometry(crR, 5, 4),
-            new THREE.MeshStandardMaterial({
-                color: new THREE.Color().setHSL(0.22, 0.5, 0.42), roughness: 0.85
-            })
-        );
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(crR, 5, 4), this._gm(0x4a8a3a));
         crown.position.y = trH + crR * 0.4;
         g.add(crown);
         g.position.set(x, 0, z);
@@ -2398,21 +2221,17 @@ class TrackBuilder {
 
     _gridMushroomRing(x, z, rng, s) {
         const g = new THREE.Group();
-        const count = 4;
         const colors = [0xcc3333, 0xdd8844, 0xeedd88, 0xaa6633];
-        for (let i = 0; i < count; i++) {
-            const a = (i / count) * Math.PI * 2;
+        for (let i = 0; i < 4; i++) {
+            const a = (i / 4) * Math.PI * 2;
             const dist = 1.2 + rng(s + 30 + i) * 1;
             const sc = 0.4 + rng(s + 40 + i) * 0.4;
-            const stem = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.07 * sc, 0.09 * sc, 0.4 * sc, 5),
-                new THREE.MeshStandardMaterial({ color: 0xeeddcc, roughness: 0.8 })
-            );
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * sc, 0.09 * sc, 0.4 * sc, 4), this._gm(0xeeddcc));
             stem.position.set(Math.cos(a) * dist, 0.2 * sc, Math.sin(a) * dist);
             g.add(stem);
             const cap = new THREE.Mesh(
-                new THREE.SphereGeometry(0.18 * sc, 5, 3, 0, Math.PI * 2, 0, Math.PI / 2),
-                new THREE.MeshStandardMaterial({ color: colors[i % colors.length], roughness: 0.7 })
+                new THREE.SphereGeometry(0.18 * sc, 4, 3, 0, Math.PI * 2, 0, Math.PI / 2),
+                this._gm(colors[i])
             );
             cap.position.set(Math.cos(a) * dist, 0.4 * sc, Math.sin(a) * dist);
             g.add(cap);
@@ -2729,10 +2548,6 @@ class TrackBuilder {
         lamp.position.set(0.8, h - 0.3, 0);
         group.add(lamp);
 
-        const light = new THREE.PointLight(0xffeebb, 0.6, 15, 2);
-        light.position.set(0.8, h - 0.5, 0);
-        group.add(light);
-
         group.position.set(dec.x, 0, dec.z);
         if (dec.rot !== undefined) group.rotation.y = dec.rot;
         return group;
@@ -2996,16 +2811,16 @@ class TrackBuilder {
             track.sunPosition.x, track.sunPosition.y, track.sunPosition.z
         );
         sun.castShadow = true;
-        sun.shadow.mapSize.width = 2048;
-        sun.shadow.mapSize.height = 2048;
-        sun.shadow.bias = -0.0002;
-        sun.shadow.normalBias = 0.03;
-        sun.shadow.camera.near = 1;
-        sun.shadow.camera.far = 800;
-        sun.shadow.camera.left = -300;
-        sun.shadow.camera.right = 300;
-        sun.shadow.camera.top = 300;
-        sun.shadow.camera.bottom = -300;
+        sun.shadow.mapSize.width = 1024;
+        sun.shadow.mapSize.height = 1024;
+        sun.shadow.bias = -0.0003;
+        sun.shadow.normalBias = 0.04;
+        sun.shadow.camera.near = 10;
+        sun.shadow.camera.far = 400;
+        sun.shadow.camera.left = -150;
+        sun.shadow.camera.right = 150;
+        sun.shadow.camera.top = 150;
+        sun.shadow.camera.bottom = -150;
         this.scene.add(sun);
         this.trackObjects.push(sun);
     }
@@ -3030,6 +2845,11 @@ class TrackBuilder {
         this.splineCurve = null;
         this.splinePoints = [];
         this.rampZones = [];
+        if (this._gridMatCache) {
+            for (const m of Object.values(this._gridMatCache)) m.dispose();
+            this._gridMatCache = null;
+        }
+        if (this._pondMat) { this._pondMat.dispose(); this._pondMat = null; }
     }
 
     getCheckpoints() {

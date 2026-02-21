@@ -64,15 +64,20 @@ class Game {
         const canvas = document.getElementById('game-canvas');
         this.renderer = new THREE.WebGLRenderer({
             canvas,
-            antialias: true,
+            antialias: window.devicePixelRatio <= 1,
             powerPreference: 'high-performance',
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
+
+        // Auto-quality: track FPS and downgrade if needed
+        this._fpsFrames = 0;
+        this._fpsTime = 0;
+        this._qualityReduced = false;
 
         // Scene
         this.scene = new THREE.Scene();
@@ -402,6 +407,21 @@ class Game {
             this.animFrameId = requestAnimationFrame(loop);
 
             const dt = Math.min(this.clock.getDelta(), 1 / 30);
+
+            // Auto-quality: if average FPS stays below 30, disable shadows
+            this._fpsFrames++;
+            this._fpsTime += dt;
+            if (!this._qualityReduced && this._fpsTime > 3) {
+                const avg = this._fpsFrames / this._fpsTime;
+                if (avg < 28) {
+                    this.renderer.shadowMap.enabled = false;
+                    this.renderer.setPixelRatio(1);
+                    this._qualityReduced = true;
+                    console.log('[Game] Low FPS detected (' + Math.round(avg) + '), reducing quality');
+                }
+                this._fpsFrames = 0;
+                this._fpsTime = 0;
+            }
 
             if (this.state === 'racing') {
                 this._updateInput();
