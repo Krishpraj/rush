@@ -53,7 +53,7 @@ class Game {
 
         // Input state
         this.keys = {};
-        this.touchInput = { steerX: 0, gas: false, brake: false };
+        this.touchInput = { steerX: 0, gas: false, brake: false, boost: false };
     }
 
     async init(ui, network) {
@@ -128,6 +128,7 @@ class Game {
         const knob = document.getElementById('joystick-knob');
         const gasBtn = document.getElementById('touch-gas');
         const brakeBtn = document.getElementById('touch-brake');
+        const boostBtn = document.getElementById('touch-boost');
 
         let joystickActive = false;
         let joystickCenterX = 0;
@@ -177,6 +178,15 @@ class Game {
             });
             brakeBtn.addEventListener('touchend', () => this.touchInput.brake = false);
             brakeBtn.addEventListener('touchcancel', () => this.touchInput.brake = false);
+        }
+
+        if (boostBtn) {
+            boostBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.touchInput.boost = true;
+            });
+            boostBtn.addEventListener('touchend', () => this.touchInput.boost = false);
+            boostBtn.addEventListener('touchcancel', () => this.touchInput.boost = false);
         }
     }
 
@@ -417,7 +427,7 @@ class Game {
             left: this.keys['a'] || this.keys['arrowleft'] || (isMobile && this.touchInput.steerX < -0.2),
             right: this.keys['d'] || this.keys['arrowright'] || (isMobile && this.touchInput.steerX > 0.2),
             handbrake: this.keys[' '],
-            boost: this.keys['shift'],
+            boost: this.keys['shift'] || this.touchInput.boost,
         };
 
         this.localCar.setInput(input);

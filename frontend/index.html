@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Rush Racing 🏁</title>
     <link rel="stylesheet" href="/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Loading Screen -->
@@ -22,33 +22,92 @@
 
     <!-- Main Menu -->
     <div id="main-menu" class="screen hidden">
-        <div class="menu-bg"></div>
-        <div class="menu-content">
-            <h1 class="game-title">RUSH</h1>
-            <p class="game-subtitle">RACING</p>
-            
-            <div class="menu-form">
-                <label class="input-label">Your Name</label>
-                <input type="text" id="player-name" class="neon-input" placeholder="Enter name..." maxlength="16" value="">
-                
-                <label class="input-label">Car Color</label>
-                <div class="color-picker" id="color-picker">
-                    <div class="color-option selected" data-color="#ff3333" style="background:#ff3333"></div>
-                    <div class="color-option" data-color="#33aaff" style="background:#33aaff"></div>
-                    <div class="color-option" data-color="#33ff33" style="background:#33ff33"></div>
-                    <div class="color-option" data-color="#ffaa00" style="background:#ffaa00"></div>
-                    <div class="color-option" data-color="#ff33ff" style="background:#ff33ff"></div>
-                    <div class="color-option" data-color="#ffffff" style="background:#ffffff"></div>
-                    <div class="color-option" data-color="#ffff33" style="background:#ffff33"></div>
-                    <div class="color-option" data-color="#00ffcc" style="background:#00ffcc"></div>
-                </div>
+        <!-- Full-screen 3D background (track + car) -->
+        <canvas id="menu-bg-canvas"></canvas>
 
-                <div class="menu-buttons">
-                    <button class="btn btn-primary" id="btn-single">SOLO RACE</button>
-                    <button class="btn btn-accent" id="btn-create-party">CREATE PARTY</button>
-                    <button class="btn btn-secondary" id="btn-join-party">JOIN PARTY</button>
-                    <button class="btn btn-ghost" id="btn-leaderboard">LEADERBOARD</button>
+        <div class="menu-overlay">
+            <!-- Title -->
+            <div class="menu-header">
+                <h1 class="game-title">RUSH<span class="title-dot">.</span>IO</h1>
+            </div>
+
+            <!-- Main content area -->
+            <div class="menu-content">
+                <!-- Car display area (left/center) -->
+                <div class="menu-car-showcase"></div>
+
+                <!-- Control panel (right/bottom) -->
+                <div class="menu-control-panel">
+                    <!-- Name input -->
+                    <div class="control-group">
+                        <label class="control-label">PLAYER</label>
+                        <input type="text" id="player-name" class="neon-input" placeholder="Player" maxlength="16" value="">
+                    </div>
+
+                    <!-- Color picker -->
+                    <div class="control-group">
+                        <label class="control-label">CAR COLOR</label>
+                        <div class="color-picker" id="color-picker">
+                            <div class="color-option selected" data-color="#ff3333" style="background:#ff3333"></div>
+                            <div class="color-option" data-color="#33aaff" style="background:#33aaff"></div>
+                            <div class="color-option" data-color="#33ff33" style="background:#33ff33"></div>
+                            <div class="color-option" data-color="#ffaa00" style="background:#ffaa00"></div>
+                            <div class="color-option" data-color="#ff33ff" style="background:#ff33ff"></div>
+                            <div class="color-option" data-color="#ffffff" style="background:#ffffff"></div>
+                            <div class="color-option" data-color="#ffff33" style="background:#ffff33"></div>
+                        </div>
+                    </div>
+
+                    <!-- Play button -->
+                    <button class="btn btn-primary btn-play" id="btn-single">PLAY</button>
+
+                    <!-- Create (own row) -->
+                    <button class="btn btn-accent btn-create" id="btn-create-party">CREATE</button>
+
+                    <!-- Join row: code + join -->
+                    <div class="party-controls">
+                        <input type="text" id="join-code-quick" class="join-input-compact" placeholder="CODE" maxlength="5">
+                        <button class="btn btn-secondary btn-join" id="btn-join-party">JOIN</button>
+                    </div>
                 </div>
+            </div>
+
+            <!-- How to play — question mark bottom right -->
+            <button type="button" class="menu-help-btn" id="btn-how-to-play" title="How to play">?</button>
+        </div>
+
+        <!-- Instructions overlay -->
+        <div id="instructions-overlay" class="instructions-overlay hidden">
+            <div class="instructions-panel">
+                <h2 class="panel-title">HOW TO PLAY</h2>
+                <div class="instructions-grid">
+                    <div class="instruction-item">
+                        <div class="instruction-keys">W / <span class="key-arrow">&#9650;</span></div>
+                        <div class="instruction-label">Accelerate</div>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-keys">S / <span class="key-arrow">&#9660;</span></div>
+                        <div class="instruction-label">Brake / Reverse</div>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-keys">A D / <span class="key-arrow">&#9664; &#9654;</span></div>
+                        <div class="instruction-label">Steer</div>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-keys">SHIFT</div>
+                        <div class="instruction-label">Boost / NOS</div>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-keys">SPACE</div>
+                        <div class="instruction-label">Handbrake / Drift</div>
+                    </div>
+                    <div class="instruction-item">
+                        <div class="instruction-keys">ESC</div>
+                        <div class="instruction-label">Pause</div>
+                    </div>
+                </div>
+                <p class="instructions-tip">Complete 3 laps to finish the race. Pass through all checkpoints!</p>
+                <button class="btn btn-primary" id="btn-close-instructions">GOT IT!</button>
             </div>
         </div>
     </div>
@@ -238,6 +297,7 @@
             </div>
         </div>
         <div class="touch-buttons">
+            <button class="touch-btn touch-boost" id="touch-boost">NOS</button>
             <button class="touch-btn touch-gas" id="touch-gas">GAS</button>
             <button class="touch-btn touch-brake" id="touch-brake">BRK</button>
         </div>

@@ -56,12 +56,13 @@ class Car {
         this._driftSmokeInited = false;
 
         // Boost system
-        this.boostMax = 2.0;          // seconds of boost
-        this.boostFuel = 2.0;         // current fuel
-        this.boostRegenRate = 0.2;    // fuel/second regen (full in 4s)
-        this.boostDrainRate = 1.0;    // fuel/second while boosting
-        this.boostMultiplier = 2.3;   // engine force multiplier during boost
-        this.boostSpeedCap = 280;     // max speed while boosting
+        this.boostMax = 3.0;
+        this.boostFuel = 3.0;
+        this.boostRegenRate = 0.5;
+        this.boostDriftRegenRate = 1.2;
+        this.boostDrainRate = 0.8;
+        this.boostMultiplier = 2.3;
+        this.boostSpeedCap = 280;
         this.isBoosting = false;
 
         // Input
@@ -848,9 +849,10 @@ class Car {
         if (this.input.boost && this.input.forward && this.boostFuel > 0) {
             this.isBoosting = true;
             this.boostFuel = Math.max(0, this.boostFuel - this.boostDrainRate * dt);
-        } else if (!this.input.boost) {
-            // Regen only after boost key is released (prevents hold-to-infinite exploit)
-            this.boostFuel = Math.min(this.boostMax, this.boostFuel + this.boostRegenRate * dt);
+        } else {
+            let regen = this.boostRegenRate;
+            if (this.isDrifting) regen = this.boostDriftRegenRate;
+            this.boostFuel = Math.min(this.boostMax, this.boostFuel + regen * dt);
         }
 
         const currentMaxSpeed = this.isBoosting ? this.boostSpeedCap : this.maxSpeed;

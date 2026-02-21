@@ -80,10 +80,20 @@ class UIManager {
 
         document.getElementById('btn-join-party').addEventListener('click', () => {
             this.playerName = document.getElementById('player-name').value.trim() || 'Player';
+            // Try quick join from top-bar input first, fall back to join screen
+            const quickInput = document.getElementById('join-code-quick');
+            if (quickInput) {
+                const code = quickInput.value.trim().toUpperCase();
+                if (code.length >= 4) {
+                    if (this.onJoinParty) this.onJoinParty(code, this.playerName, this.selectedColor);
+                    return;
+                }
+            }
             this.showScreen('joinParty');
         });
 
-        document.getElementById('btn-leaderboard').addEventListener('click', () => {
+        const btnLb = document.getElementById('btn-leaderboard');
+        if (btnLb) btnLb.addEventListener('click', () => {
             this.showScreen('leaderboard');
             if (this._loadLeaderboard) this._loadLeaderboard('all');
         });
