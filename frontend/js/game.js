@@ -400,15 +400,20 @@ class Game {
     _startLoop() {
         if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
         this.clock.start();
+        this._physicsAccumulator = 0;
+
+        const FIXED_DT = 1 / 60;
+        const MAX_FRAME_DT = 1 / 30;
+        const MAX_ACCUMULATOR = FIXED_DT * 5;
 
         const loop = () => {
             this.animFrameId = requestAnimationFrame(loop);
 
-            const dt = Math.min(this.clock.getDelta(), 1 / 30);
+            const frameDt = Math.min(this.clock.getDelta(), MAX_FRAME_DT);
 
             // Auto-quality: if average FPS stays below 30, disable shadows
             this._fpsFrames++;
-            this._fpsTime += dt;
+            this._fpsTime += frameDt;
             if (!this._qualityReduced && this._fpsTime > 3) {
                 const avg = this._fpsFrames / this._fpsTime;
                 if (avg < 28) {
@@ -422,8 +427,17 @@ class Game {
             }
 
             if (this.state === 'racing') {
-                this._updateInput();
-                this._updatePhysics(dt);
+                this._physicsAccumulator += frameDt;
+                if (this._physicsAccumulator > MAX_ACCUMULATOR) {
+                    this._physicsAccumulator = MAX_ACCUMULATOR;
+                }
+
+                while (this._physicsAccumulator >= FIXED_DT) {
+                    this._updateInput();
+                    this._updatePhysics(FIXED_DT);
+                    this._physicsAccumulator -= FIXED_DT;
+                }
+
                 this._updateCheckpoints();
                 this._updateHUD();
                 this._updateMinimap();

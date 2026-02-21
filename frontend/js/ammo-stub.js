@@ -241,11 +241,12 @@ class btDiscreteDynamicsWorld {
             this._substep(subDt);
         }
 
-        // Friction applied ONCE per step (same on ground and in air)
+        // Velocity friction scaled by dt for frame-rate independence
+        const frictionFactor = Math.pow(0.995, dt * 60);
         for (const body of this.bodies) {
             if (body.mass <= 0) continue;
-            body.velocity._x *= 0.995;
-            body.velocity._z *= 0.995;
+            body.velocity._x *= frictionFactor;
+            body.velocity._z *= frictionFactor;
         }
 
         // Clear forces AFTER all substeps
