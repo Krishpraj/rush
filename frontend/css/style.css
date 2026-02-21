@@ -58,43 +58,19 @@ body {
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: linear-gradient(180deg, var(--sky) 0%, #87ceeb 40%, var(--green) 40%, var(--green-dark) 100%);
+    background: linear-gradient(180deg, var(--sky) 0%, #87ceeb 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
 }
 
-/* Road on loading */
 #loading-screen::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 120px;
-    height: 60%;
-    background: #555;
-    border-radius: 60px 60px 0 0;
-    z-index: 0;
+    content: none;
 }
 
 #loading-screen::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 60%;
-    background: repeating-linear-gradient(
-        180deg,
-        #fff 0px,
-        #fff 16px,
-        transparent 16px,
-        transparent 32px
-    );
-    z-index: 1;
+    content: none;
 }
 
 .loader-content {
@@ -124,30 +100,67 @@ body {
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
 }
 
-.loader-bar {
-    width: 300px;
-    max-width: 80vw;
-    height: 18px;
-    background: rgba(0, 0, 0, 0.25);
-    border-radius: 999px;
-    margin: 30px auto 12px;
-    overflow: hidden;
-    border: 3px solid rgba(255, 255, 255, 0.4);
+/* Track = 6 checkpoint segments, car moves along */
+.loader-track-wrap {
+    width: 320px;
+    max-width: 85vw;
+    margin: 28px auto 8px;
+    position: relative;
 }
 
-.loader-fill {
+.loader-track {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 14px;
+    padding: 4px 8px;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    position: relative;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.loader-segment {
+    flex: 1;
     height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #ffe44d, #ffaa00);
-    border-radius: 999px;
-    transition: width 0.25s ease;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.loader-segment.filled {
+    background: linear-gradient(180deg, #ffdd44 0%, #e6a800 100%);
+    box-shadow: 0 0 12px rgba(255, 221, 68, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.loader-car {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 221, 68, 0.5);
+    transition: left 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: 2;
 }
 
 .loader-text {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 15px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.loader-percent {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
 }
 
 /* --- Screens / Panels --- */
@@ -526,7 +539,7 @@ body {
     position: absolute;
     inset: 0;
     overflow: hidden;
-    background: linear-gradient(180deg, var(--sky) 0%, #6dd5fa 35%, var(--green) 35%, #268a3e 100%);
+    background: linear-gradient(180deg, var(--sky) 0%, #87ceeb 100%);
 }
 
 .panel-content {
@@ -990,6 +1003,8 @@ body {
     border-radius: 14px;
     padding: 6px 14px;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+    min-width: 70px;
+    text-align: center;
 }
 
 .hud-lap {
@@ -1001,6 +1016,9 @@ body {
     padding: 8px 14px;
     border-radius: 14px;
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+    min-width: 100px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
 }
 
 .hud-time {
@@ -1011,6 +1029,9 @@ body {
     border: 3px solid rgba(255, 255, 255, 0.2);
     border-radius: 14px;
     padding: 7px 14px;
+    min-width: 130px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
 }
 
 .hud-bottom {
@@ -1034,6 +1055,7 @@ body {
     padding: 14px 16px 12px;
     min-width: 170px;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+    font-variant-numeric: tabular-nums;
 }
 
 .speed-unit {

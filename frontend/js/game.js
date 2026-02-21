@@ -730,7 +730,7 @@ class Game {
             { x: carPos.x, z: carPos.z },
             checkpoints,
             others,
-            this.trackData.path
+            this.trackBuilder.trackPath
         );
     }
 

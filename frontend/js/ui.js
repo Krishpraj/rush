@@ -420,8 +420,25 @@ class UIManager {
     // --- Loading ---
 
     setLoadingProgress(percent, text) {
-        document.getElementById('loader-fill').style.width = percent + '%';
-        document.getElementById('loader-text').textContent = text || '';
+        const segs = document.querySelectorAll('.loader-segment');
+        const thresholdPerSegment = 100 / (segs.length || 1);
+        segs.forEach((seg, i) => {
+            const fillAt = (i + 1) * thresholdPerSegment;
+            seg.classList.toggle('filled', percent >= fillAt);
+        });
+        const car = document.getElementById('loader-car');
+        const trackWrap = document.querySelector('.loader-track-wrap');
+        if (car && trackWrap) {
+            const tw = trackWrap.offsetWidth || 320;
+            const pad = 8;
+            const carW = 24;
+            const maxLeft = tw - pad - carW;
+            car.style.left = pad + (percent / 100) * Math.max(0, maxLeft - pad) + 'px';
+        }
+        const textEl = document.getElementById('loader-text');
+        const percentEl = document.getElementById('loader-percent');
+        if (textEl) textEl.textContent = text || '';
+        if (percentEl) percentEl.textContent = Math.round(percent) + '%';
     }
 
     // --- HUD ---

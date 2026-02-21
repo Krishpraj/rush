@@ -13,10 +13,19 @@
         <div class="loader-content">
             <h1 class="game-title">RUSH</h1>
             <p class="game-subtitle">RACING</p>
-            <div class="loader-bar">
-                <div class="loader-fill" id="loader-fill"></div>
+            <div class="loader-track-wrap">
+                <div class="loader-track" aria-hidden="true">
+                    <span class="loader-segment" data-segment="0"></span>
+                    <span class="loader-segment" data-segment="1"></span>
+                    <span class="loader-segment" data-segment="2"></span>
+                    <span class="loader-segment" data-segment="3"></span>
+                    <span class="loader-segment" data-segment="4"></span>
+                    <span class="loader-segment" data-segment="5"></span>
+                    <span class="loader-car" id="loader-car" aria-hidden="true"></span>
+                </div>
             </div>
             <p class="loader-text" id="loader-text">Loading engine...</p>
+            <p class="loader-percent" id="loader-percent">0%</p>
         </div>
     </div>
 
