@@ -158,16 +158,16 @@ class NetworkManager {
         this.isHost = false;
     }
 
-    async startRace() {
+    async startRace(trackId, goTime) {
         if (!this.partyCode || !this.isHost) return;
         try {
             await fetch(`/api/party/${this.partyCode}/start`, { method: 'POST' });
         } catch { }
 
-        // Notify all peers
         this.broadcast({
             type: 'race_start',
-            timestamp: Date.now(),
+            trackId,
+            goTime,
         });
     }
 

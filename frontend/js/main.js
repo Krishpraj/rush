@@ -142,14 +142,15 @@
         }
     };
 
-    // Start race from lobby
+    // Start race from lobby (host) — synchronized countdown
     ui.onStartRace = async () => {
         const party = await network.getParty();
         if (!party) return;
         game.trackId = party.track_id;
-        await network.startRace();
+        const goTime = Date.now() + 5500;
+        await network.startRace(party.track_id, goTime);
         ui.hideAllScreens();
-        await game.startRace(party.track_id);
+        await game.startRace(party.track_id, true, goTime);
     };
 
     // Leave party
@@ -187,15 +188,12 @@
         ui.updateLeaderboard(data.leaderboard || []);
     };
 
-    // Handle race start from network (non-host)
+    // Handle race start from network (non-host) — use broadcast data directly, skip API call
     network.onRaceStart = async (data) => {
-        if (game.state !== 'racing') {
-            const party = await network.getParty();
-            if (party) {
-                game.trackId = party.track_id;
-                ui.hideAllScreens();
-                await game.startRace(party.track_id);
-            }
+        if (game.state !== 'racing' && data.trackId) {
+            game.trackId = data.trackId;
+            ui.hideAllScreens();
+            await game.startRace(data.trackId, true, data.goTime || null);
         }
     };
 
@@ -452,6 +450,116 @@
         localStorage.setItem('rush_name', name);
         localStorage.setItem('rush_color', color);
     }
+
+    // --- Draw actual track paths in track-select cards ---
+    function _drawTrackPreviews() {
+        if (typeof TRACK_DATA === 'undefined' || typeof THREE === 'undefined') return;
+        const themeColors = {
+            track_1: { stroke: 'rgba(74,222,128,0.8)', fill: 'rgba(74,222,128,0.06)' },
+            track_2: { stroke: 'rgba(140,170,220,0.8)', fill: 'rgba(140,170,220,0.06)' },
+            track_3: { stroke: 'rgba(220,180,100,0.8)', fill: 'rgba(220,180,100,0.06)' },
+        };
+        document.querySelectorAll('.track-preview-canvas').forEach(canvas => {
+            const trackId = canvas.dataset.trackId;
+            const track = TRACK_DATA[trackId];
+            if (!track || !track.controlPoints) return;
+
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const colors = themeColors[trackId] || themeColors.track_1;
+            ctx.fillStyle = colors.fill;
+            ctx.fillRect(0, 0, w, h);
+
+            const pts = track.controlPoints;
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            for (const p of pts) {
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if ((p.z !== undefined ? p.z : 0) < minZ) minZ = (p.z !== undefined ? p.z : 0);
+                if ((p.z !== undefined ? p.z : 0) > maxZ) maxZ = (p.z !== undefined ? p.z : 0);
+            }
+            const spanX = maxX - minX || 1;
+            const spanZ = maxZ - minZ || 1;
+            const pad = 16;
+            const scaleX = (w - pad * 2) / spanX;
+            const scaleZ = (h - pad * 2) / spanZ;
+            const scale = Math.min(scaleX, scaleZ);
+            const offX = (w - spanX * scale) / 2 - minX * scale;
+            const offZ = (h - spanZ * scale) / 2 - minZ * scale;
+
+            const toX = (p) => p.x * scale + offX;
+            const toY = (p) => (p.z !== undefined ? p.z : 0) * scale + offZ;
+
+            // Smooth the path using a Catmull-Rom-style subdivision
+            const smooth = [];
+            const n = pts.length;
+            const segments = 6;
+            for (let i = 0; i < n; i++) {
+                const p0 = pts[(i - 1 + n) % n];
+                const p1 = pts[i];
+                const p2 = pts[(i + 1) % n];
+                const p3 = pts[(i + 2) % n];
+                for (let t = 0; t < segments; t++) {
+                    const s = t / segments;
+                    const s2 = s * s, s3 = s2 * s;
+                    const x = 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * s +
+                        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * s2 +
+                        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * s3);
+                    const z0 = p0.z !== undefined ? p0.z : 0;
+                    const z1 = p1.z !== undefined ? p1.z : 0;
+                    const z2 = p2.z !== undefined ? p2.z : 0;
+                    const z3 = p3.z !== undefined ? p3.z : 0;
+                    const z = 0.5 * ((2 * z1) + (-z0 + z2) * s +
+                        (2 * z0 - 5 * z1 + 4 * z2 - z3) * s2 +
+                        (-z0 + 3 * z1 - 3 * z2 + z3) * s3);
+                    smooth.push({ x, z });
+                }
+            }
+
+            // Road width fill
+            const roadW = (track.roadWidth || 16) * scale * 0.4;
+            ctx.lineWidth = roadW;
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            smooth.forEach((p, i) => {
+                const sx = p.x * scale + offX;
+                const sy = p.z * scale + offZ;
+                if (i === 0) ctx.moveTo(sx, sy);
+                else ctx.lineTo(sx, sy);
+            });
+            ctx.closePath();
+            ctx.stroke();
+
+            // Center line
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = colors.stroke;
+            ctx.beginPath();
+            smooth.forEach((p, i) => {
+                const sx = p.x * scale + offX;
+                const sy = p.z * scale + offZ;
+                if (i === 0) ctx.moveTo(sx, sy);
+                else ctx.lineTo(sx, sy);
+            });
+            ctx.closePath();
+            ctx.stroke();
+
+            // Start/finish marker
+            if (track.finishLine) {
+                const fx = track.finishLine.x * scale + offX;
+                const fz = track.finishLine.z * scale + offZ;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(fx, fz, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+    }
+    _drawTrackPreviews();
 
     console.log('[Rush Racing] Game ready!');
 })();

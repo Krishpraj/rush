@@ -216,9 +216,7 @@ class Game {
         };
 
         this.network.onRaceStart = (data) => {
-            if (this.state !== 'racing') {
-                this.startRace(this.trackId, false);
-            }
+            // Handled by main.js for proper sync support
         };
 
         this.network.onRaceFinish = (peerId, data) => {
@@ -248,7 +246,7 @@ class Game {
 
     // --- Game States ---
 
-    async startRace(trackId, showCountdown = true) {
+    async startRace(trackId, showCountdown = true, goTime = null) {
         this.trackId = trackId;
         this.state = 'countdown';
         this.raceFinished = false;
@@ -297,9 +295,9 @@ class Game {
         this.ui.hideAllScreens();
         this.ui.showHUD();
 
-        // Countdown
+        // Countdown — synced to goTime in multiplayer so all players start together
         if (showCountdown) {
-            await this.ui.showCountdown();
+            await this.ui.showCountdown(goTime);
         }
 
         // Start racing
@@ -535,16 +533,21 @@ class Game {
                 (carPos.x - cp.x) ** 2 + (carPos.z - cp.z) ** 2
             );
             if (dist < cp.width) {
-                // Only register if car is moving in the correct track direction
                 const dir = this.trackBuilder.getTrackDirection(carPos.x, carPos.z, carPos.y);
                 const fwd = { x: Math.sin(this.localCar.yaw), z: Math.cos(this.localCar.yaw) };
                 const dot = fwd.x * dir.dx + fwd.z * dir.dz;
-                if (dot > -0.3) { // allow up to ~107 degrees off (generous for tight curves)
+                if (dot > -0.3) {
                     cp.passed = true;
                     this.nextCheckpoint++;
                     this.ui.showCheckpointFlash();
                 }
             }
+        }
+
+        // Keep local car's network state up-to-date for broadcasting
+        if (this.localCar) {
+            this.localCar.netLap = this.currentLap;
+            this.localCar.netCheckpoint = this.nextCheckpoint;
         }
 
         // Check finish line (all checkpoints passed)
@@ -725,12 +728,21 @@ class Game {
     }
 
     _calculatePosition() {
-        // In single player, always 1st. In multiplayer, based on checkpoints and lap
-        if (!this.isMultiplayer) return 1;
+        if (!this.isMultiplayer || this.remoteCars.size === 0) return 1;
 
-        // Simple: based on who's ahead in checkpoints / laps
+        const checkpoints = this.trackBuilder ? this.trackBuilder.getCheckpoints() : [];
+        const totalCp = checkpoints.length || 1;
+        const myProgress = (this.currentLap - 1) * totalCp + this.nextCheckpoint;
+
         let position = 1;
-        // Could be enhanced with actual distance tracking
+        for (const [, car] of this.remoteCars) {
+            const remoteLap = car.netLap || 1;
+            const remoteCp = car.netCheckpoint || 0;
+            const remoteProgress = (remoteLap - 1) * totalCp + remoteCp;
+            if (remoteProgress > myProgress) {
+                position++;
+            }
+        }
         return position;
     }
 

@@ -791,36 +791,43 @@ body {
     font-weight: 700;
 }
 
+.track-meta {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.track-meta span {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-dim);
+}
+
+.track-difficulty.easy { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.track-difficulty.medium { color: #fbbf24; background: rgba(251, 191, 36, 0.12); }
+.track-difficulty.hard { color: #f87171; background: rgba(248, 113, 113, 0.12); }
+
 .track-preview {
     width: 100%;
-    height: 80px;
+    height: 100px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.04);
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.track-1-preview::after,
-.track-2-preview::after,
-.track-3-preview::after {
-    content: '';
-    position: absolute;
-    inset: 15px;
-    border: 3px solid rgba(255, 255, 255, 0.5);
-}
-
-.track-1-preview::after {
-    border-radius: 40px;
-}
-
-.track-2-preview::after {
-    border-radius: 8px;
-    clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
-}
-
-.track-3-preview::after {
-    border-radius: 4px;
-    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+.track-preview-canvas {
+    width: 100%;
+    height: 100%;
 }
 
 .track-buttons {

@@ -899,8 +899,9 @@ class Car {
                     forward.x * dragForce, 0, forward.z * dragForce
                 ));
             } else {
-                this.body.velocity._x *= 0.95;
-                this.body.velocity._z *= 0.95;
+                const coastDamp = Math.pow(0.95, dt * 60);
+                this.body.velocity._x *= coastDamp;
+                this.body.velocity._z *= coastDamp;
             }
         }
 
@@ -924,15 +925,16 @@ class Car {
             }
         }
 
-        // --- Lateral grip: cancel sideways velocity ---
+        // --- Lateral grip: cancel sideways velocity (dt-scaled for framerate independence) ---
         const lateralSpeed = vx * right.x + vz * right.z;
         const baseGrip = this.input.handbrake
             ? this.handbrakeGrip
             : THREE.MathUtils.lerp(this.baseLateralGrip, this.highSpeedLateralGrip, speedNorm);
         const slipFactor = Math.min(Math.abs(lateralSpeed) / 26, 1);
         const dynamicGrip = baseGrip * (1 - slipFactor * 0.22);
-        this.body.velocity._x -= right.x * lateralSpeed * dynamicGrip;
-        this.body.velocity._z -= right.z * lateralSpeed * dynamicGrip;
+        const gripCorrection = 1 - Math.pow(1 - dynamicGrip, dt * 60);
+        this.body.velocity._x -= right.x * lateralSpeed * gripCorrection;
+        this.body.velocity._z -= right.z * lateralSpeed * gripCorrection;
 
         // Stability assist: align velocity with heading at speed to reduce fishtailing
         const planarSpeed = Math.sqrt(vx * vx + vz * vz);
@@ -1290,6 +1292,8 @@ class Car {
         this.group.quaternion.copy(yawQuat);
         this.speed = state.speed || 0;
         this.steerAngle = state.steer || 0;
+        this.netLap = state.lap || 1;
+        this.netCheckpoint = state.cp || 0;
         const wheelSpin = this.speed * 0.016 * 0.08;
         this._wheelSpinAngle += wheelSpin;
 
@@ -1324,6 +1328,8 @@ class Car {
             yaw: this.yaw,
             speed: this.speed,
             steer: this.steerAngle,
+            lap: this.netLap || 1,
+            cp: this.netCheckpoint || 0,
         };
     }
 

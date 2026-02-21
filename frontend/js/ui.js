@@ -504,34 +504,55 @@ class UIManager {
 
     // --- Countdown ---
 
-    async showCountdown() {
+    async showCountdown(goTime = null) {
         return new Promise(resolve => {
             this.screens.countdown.classList.remove('hidden');
             const textEl = document.getElementById('countdown-text');
-            let count = 3;
 
-            const tick = () => {
-                if (count > 0) {
-                    textEl.textContent = count;
-                    textEl.style.animation = 'none';
-                    void textEl.offsetWidth;
-                    textEl.style.animation = 'countPulse 1s ease-out';
-                    count--;
-                    setTimeout(tick, 1000);
-                } else {
-                    textEl.textContent = 'GO!';
-                    textEl.style.color = '#f5f5f5';
-                    textEl.style.animation = 'none';
-                    void textEl.offsetWidth;
-                    textEl.style.animation = 'countPulse 1s ease-out';
+            // Absolute time when "GO" ends and racing begins.
+            // In multiplayer, goTime is a shared Date.now() timestamp so all clients align.
+            const raceAt = goTime || (Date.now() + 4000);
+
+            const pulse = (text, color) => {
+                textEl.textContent = text;
+                textEl.style.color = color || '';
+                textEl.style.animation = 'none';
+                void textEl.offsetWidth;
+                textEl.style.animation = 'countPulse 1s ease-out';
+            };
+
+            const steps = [
+                { text: '3', offset: -4000 },
+                { text: '2', offset: -3000 },
+                { text: '1', offset: -2000 },
+                { text: 'GO!', offset: -1000, color: '#f5f5f5' },
+            ];
+
+            let idx = 0;
+            const now = Date.now();
+            while (idx < steps.length && raceAt + steps[idx].offset < now - 50) {
+                idx++;
+            }
+
+            const runStep = () => {
+                if (idx >= steps.length) {
+                    const wait = Math.max(0, raceAt - Date.now());
                     setTimeout(() => {
                         this.screens.countdown.classList.add('hidden');
                         textEl.style.color = '';
                         resolve();
-                    }, 1000);
+                    }, wait);
+                    return;
                 }
+                const step = steps[idx];
+                const delay = Math.max(0, (raceAt + step.offset) - Date.now());
+                setTimeout(() => {
+                    pulse(step.text, step.color);
+                    idx++;
+                    runStep();
+                }, delay);
             };
-            tick();
+            runStep();
         });
     }
 
