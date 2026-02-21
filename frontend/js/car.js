@@ -29,29 +29,38 @@ class Car {
         this._colorMaterials = [];
         this._boostFlames = [];
         this._boostLight = null;
+        this.carScale = 1.5;
 
         // Car settings
-        this.maxSpeed = 200; // km/h
+        this.maxSpeed = 260; // km/h
         this.maxReverseSpeed = 50;
         this.acceleration = 32000;
         this.brakeStrength = 55000;
-        this.maxSteerAngle = 0.55;
-        this.steerSpeed = 4.0;
+        this.maxSteerAngle = 0.62;
+        this.steerSpeed = 4.5;
         this.steerReturnSpeed = 6.0;
         this.suspensionStiffness = 30;
-        this.minSteerAngle = 0.2;
-        this.turnResponsiveness = 2.1;
+        this.minSteerAngle = 0.24;
+        this.turnResponsiveness = 2.3;
         this.baseLateralGrip = 0.92;
         this.highSpeedLateralGrip = 0.985;
-        this.handbrakeGrip = 0.82;
+        this.handbrakeGrip = 0.68;
         this.stabilityAssist = 1.9;
+        this.driftTurnBoost = 0.6;
+
+        // Drift state
+        this.isDrifting = false;
+        this.driftAmount = 0;       // 0..1 smooth blend into drift
+        this.driftVisualRoll = 0;   // visual body lean
+        this._driftSmoke = [];      // particle pool
+        this._driftSmokeInited = false;
 
         // Boost system
         this.boostMax = 2.0;          // seconds of boost
         this.boostFuel = 2.0;         // current fuel
-        this.boostRegenRate = 0.5;    // fuel/second regen (full in 4s)
+        this.boostRegenRate = 0.2;    // fuel/second regen (full in 4s)
         this.boostDrainRate = 1.0;    // fuel/second while boosting
-        this.boostMultiplier = 2.8;   // engine force multiplier during boost
+        this.boostMultiplier = 2.3;   // engine force multiplier during boost
         this.boostSpeedCap = 280;     // max speed while boosting
         this.isBoosting = false;
 
@@ -89,6 +98,7 @@ class Car {
         this._setupOrbitControls();
 
         this._buildVisual();
+        this.group.scale.setScalar(this.carScale);
     }
 
     _buildVisual() {
@@ -754,9 +764,9 @@ class Car {
     initPhysics(position) {
         this.body = this.physics.createCarBody({
             x: position.x,
-            y: position.y + 0.5,
+            y: position.y + 0.5 * this.carScale,
             z: position.z
-        });
+        }, this.carScale);
     }
 
     setInput(input) {
@@ -789,11 +799,15 @@ class Car {
         // Progressive steering lock: strong at low speed, stable at high speed
         const speedAbs = Math.abs(this.speed);
         const speedNorm = Math.min(speedAbs / this.maxSpeed, 1);
-        const steerLimit = THREE.MathUtils.lerp(
+        let steerLimit = THREE.MathUtils.lerp(
             this.maxSteerAngle,
             this.minSteerAngle,
             Math.pow(speedNorm, 0.75)
         );
+        // Drifting loosens the steering lock slightly
+        if (this.input.handbrake) {
+            steerLimit = THREE.MathUtils.lerp(steerLimit, this.maxSteerAngle, 0.1);
+        }
         targetSteer = Math.max(-steerLimit, Math.min(steerLimit, targetSteer));
 
         if (targetSteer !== 0) {
@@ -803,15 +817,29 @@ class Car {
             this.steerAngle *= Math.max(0, 1 - dt * returnRate);
         }
 
+        // Drift state update
+        const wantDrift = this.input.handbrake && speedAbs > 20 && (this.input.left || this.input.right);
+        if (wantDrift) {
+            this.driftAmount = Math.min(1, this.driftAmount + dt * 4.0);
+        } else {
+            this.driftAmount = Math.max(0, this.driftAmount - dt * 3.0);
+        }
+        this.isDrifting = this.driftAmount > 0.1;
+
         // Apply yaw rotation from steering (only when moving)
         if (Math.abs(this.speed) > 2) {
             const reverseFactor = this.speed >= 0 ? 1 : -0.55;
             const turnScale = 0.7 + Math.min(speedAbs / 120, 0.8);
-            const turnRate = this.steerAngle
+            let turnRate = this.steerAngle
                 * reverseFactor
                 * this.turnResponsiveness
                 * (this.speed / 100)
                 * turnScale;
+            // Drift: much sharper turns
+            if (this.isDrifting) {
+                const driftSteer = Math.sign(this.steerAngle) * this.driftTurnBoost * this.driftAmount;
+                turnRate += driftSteer * Math.min(speedAbs / 50, 1.5);
+            }
             this.yaw += turnRate * dt;
         }
 
@@ -820,8 +848,8 @@ class Car {
         if (this.input.boost && this.input.forward && this.boostFuel > 0) {
             this.isBoosting = true;
             this.boostFuel = Math.max(0, this.boostFuel - this.boostDrainRate * dt);
-        } else {
-            // Regen when not boosting
+        } else if (!this.input.boost) {
+            // Regen only after boost key is released (prevents hold-to-infinite exploit)
             this.boostFuel = Math.min(this.boostMax, this.boostFuel + this.boostRegenRate * dt);
         }
 
@@ -849,7 +877,16 @@ class Car {
         }
 
         if (this.input.handbrake) {
-            this.brakeForce = this.brakeStrength * 1.2;
+            if (this.isDrifting && this.input.forward) {
+                // Drifting on gas: no brake, speed maintained via low lateral grip
+                this.brakeForce = 0;
+            } else if (this.isDrifting) {
+                // Drifting without gas: very light brake
+                this.brakeForce = this.brakeStrength * 0.15;
+            } else {
+                // Standing handbrake (low speed / no steering)
+                this.brakeForce = this.brakeStrength * 1.2;
+            }
         }
 
         // Natural drag when coasting
@@ -931,7 +968,21 @@ class Car {
         const pitchQuat = new THREE.Quaternion().setFromAxisAngle(
             new THREE.Vector3(1, 0, 0), this.visualPitch
         );
-        this.group.quaternion.copy(yawQuat.clone().multiply(pitchQuat));
+        // Drift visual roll: lean the car body into the drift
+        const targetRoll = this.isDrifting ? -this.steerAngle * this.driftAmount * 0.12 : 0;
+        this.driftVisualRoll += (targetRoll - this.driftVisualRoll) * Math.min(dt * 8, 1);
+        const rollQuat = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(0, 0, 1), this.driftVisualRoll
+        );
+        this.group.quaternion.copy(yawQuat.clone().multiply(pitchQuat).multiply(rollQuat));
+
+        // Drift smoke
+        if (this.isDrifting) {
+            this._emitDriftSmoke(dt);
+        } else if (this._driftSmokeInited) {
+            // Fade out remaining particles
+            this._emitDriftSmoke(dt);
+        }
 
         // Animate wheels
         const wheelSpin = this.speed * dt * 0.08;
@@ -1003,6 +1054,91 @@ class Car {
         }
 
         // Name tag stays fixed relative to the car (no billboard rotation)
+    }
+
+    _setupDriftSmoke() {
+        if (this._driftSmokeInited) return;
+        this._driftSmokeInited = true;
+
+        const smokeMat = new THREE.SpriteMaterial({
+            color: 0xcccccc,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.NormalBlending,
+        });
+
+        const POOL_SIZE = 80;
+        for (let i = 0; i < POOL_SIZE; i++) {
+            const sprite = new THREE.Sprite(smokeMat.clone());
+            sprite.visible = false;
+            sprite.scale.set(0.3, 0.3, 0.3);
+            this.scene.add(sprite);
+            this._driftSmoke.push({
+                sprite,
+                life: 0,
+                maxLife: 0,
+                vx: 0, vy: 0, vz: 0,
+                startSize: 0.3,
+            });
+        }
+    }
+
+    _emitDriftSmoke(dt) {
+        if (!this._driftSmokeInited) this._setupDriftSmoke();
+
+        const pos = this.group.position;
+        const forward = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+        const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+
+        // Rear wheel offsets (left and right)
+        const rearOffsets = [
+            { x: -0.7, z: -1.6 },
+            { x: 0.7, z: -1.6 },
+        ];
+
+        // Spawn rate based on drift intensity
+        const spawnRate = this.driftAmount * 50;
+        const spawnCount = Math.floor(spawnRate * dt + (Math.random() < (spawnRate * dt % 1) ? 1 : 0));
+
+        for (let s = 0; s < spawnCount; s++) {
+            // Find a dead particle
+            let p = null;
+            for (const candidate of this._driftSmoke) {
+                if (candidate.life <= 0) { p = candidate; break; }
+            }
+            if (!p) continue;
+
+            const offset = rearOffsets[Math.floor(Math.random() * 2)];
+            const wx = pos.x + forward.x * offset.z + right.x * offset.x;
+            const wz = pos.z + forward.z * offset.z + right.z * offset.x;
+
+            p.sprite.position.set(wx, pos.y + 0.15, wz);
+            p.sprite.visible = true;
+            p.maxLife = 0.35 + Math.random() * 0.3;
+            p.life = p.maxLife;
+            p.startSize = 0.15 + Math.random() * 0.15;
+            p.vx = (Math.random() - 0.5) * 1.0;
+            p.vy = 0.5 + Math.random() * 0.4;
+            p.vz = (Math.random() - 0.5) * 1.0;
+        }
+
+        // Update all particles
+        for (const p of this._driftSmoke) {
+            if (p.life <= 0) continue;
+            p.life -= dt;
+            if (p.life <= 0) {
+                p.sprite.visible = false;
+                continue;
+            }
+            const t = 1 - (p.life / p.maxLife);
+            p.sprite.position.x += p.vx * dt;
+            p.sprite.position.y += p.vy * dt;
+            p.sprite.position.z += p.vz * dt;
+            const size = p.startSize + t * 0.7;
+            p.sprite.scale.set(size, size, size);
+            p.sprite.material.opacity = (1 - t) * 0.35;
+        }
     }
 
     _setupOrbitControls() {
@@ -1194,6 +1330,10 @@ class Car {
         if (this.body) {
             this.physics.removeBody(this.body);
         }
+        for (const p of this._driftSmoke) {
+            this.scene.remove(p.sprite);
+        }
+        this._driftSmoke = [];
     }
 }
 

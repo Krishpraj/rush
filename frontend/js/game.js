@@ -430,40 +430,43 @@ class Game {
             // Constrain car to track boundaries
             if (this.localCar.body && this.trackBuilder) {
                 this.trackBuilder.constrainToTrack(this.localCar.body);
-                // Apply ramp heights — lift car when driving over ramps
-                const bodyX = this.localCar.body.position._x;
-                const bodyZ = this.localCar.body.position._z;
-                const rampH = this.trackBuilder.getRampHeight(
-                    bodyX,
-                    bodyZ
-                );
 
-                // Visual ramp pitch (nose up/down) from front/back sampled ramp height
+                const bodyX = this.localCar.body.position._x;
+                const bodyY = this.localCar.body.position._y;
+                const bodyZ = this.localCar.body.position._z;
+
+                // Combined elevation: track elevation + any ramp height
+                // Pass current Y so overlapping track layers resolve correctly
+                const trackElev = this.trackBuilder.getTrackElevation(bodyX, bodyZ, bodyY);
+                const rampH = this.trackBuilder.getRampHeight(bodyX, bodyZ);
+                const totalH = trackElev + rampH;
+
+                // Visual pitch from front/back elevation sampling
                 const fwdX = Math.sin(this.localCar.yaw);
                 const fwdZ = Math.cos(this.localCar.yaw);
                 const sampleDist = 1.7;
-                const frontH = this.trackBuilder.getRampHeight(
-                    bodyX + fwdX * sampleDist,
-                    bodyZ + fwdZ * sampleDist
+                const frontElev = this.trackBuilder.getTrackElevation(
+                    bodyX + fwdX * sampleDist, bodyZ + fwdZ * sampleDist, bodyY
+                ) + this.trackBuilder.getRampHeight(
+                    bodyX + fwdX * sampleDist, bodyZ + fwdZ * sampleDist
                 );
-                const backH = this.trackBuilder.getRampHeight(
-                    bodyX - fwdX * sampleDist,
-                    bodyZ - fwdZ * sampleDist
+                const backElev = this.trackBuilder.getTrackElevation(
+                    bodyX - fwdX * sampleDist, bodyZ - fwdZ * sampleDist, bodyY
+                ) + this.trackBuilder.getRampHeight(
+                    bodyX - fwdX * sampleDist, bodyZ - fwdZ * sampleDist
                 );
-                const targetPitch = -Math.atan2(frontH - backH, sampleDist * 2);
+                const targetPitch = -Math.atan2(frontElev - backElev, sampleDist * 2);
                 this.localCar.setRampPitch(targetPitch);
 
-                if (rampH > 0.05) {
-                    const rampRideHeight = 0.06;
-                    const targetY = rampH + rampRideHeight;
+                if (totalH > 0.05) {
+                    const rideHeight = 0.06;
+                    const targetY = totalH + rideHeight;
                     const currentY = this.localCar.body.position._y;
                     const dy = targetY - currentY;
 
-                    // Follow ramp profile both upward and downward (prevents floating on descent)
                     const followStep = Math.max(-0.5, Math.min(0.5, dy * 0.9));
                     this.localCar.body.position._y = currentY + followStep;
 
-                    // Keep vertical velocity stable while tracking ramp surface
                     if (dy > 0 && this.localCar.body.velocity._y < 0) {
                         this.localCar.body.velocity._y = 0;
                     } else if (dy < 0 && this.localCar.body.velocity._y > 0) {
@@ -503,7 +506,7 @@ class Game {
             );
             if (dist < cp.width) {
                 // Only register if car is moving in the correct track direction
-                const dir = this.trackBuilder.getTrackDirection(carPos.x, carPos.z);
+                const dir = this.trackBuilder.getTrackDirection(carPos.x, carPos.z, carPos.y);
                 const fwd = { x: Math.sin(this.localCar.yaw), z: Math.cos(this.localCar.yaw) };
                 const dot = fwd.x * dir.dx + fwd.z * dir.dz;
                 if (dot > -0.3) { // allow up to ~107 degrees off (generous for tight curves)
@@ -548,7 +551,7 @@ class Game {
     _detectWrongWay() {
         if (!this.localCar || !this.trackBuilder) return;
         const carPos = this.localCar.getPosition();
-        const dir = this.trackBuilder.getTrackDirection(carPos.x, carPos.z);
+        const dir = this.trackBuilder.getTrackDirection(carPos.x, carPos.z, carPos.y);
         const fwd = { x: Math.sin(this.localCar.yaw), z: Math.cos(this.localCar.yaw) };
         const dot = fwd.x * dir.dx + fwd.z * dir.dz;
 
@@ -670,7 +673,7 @@ class Game {
 
         // Always compute heading from road tangent at reset point.
         if (this.trackBuilder) {
-            const dir = this.trackBuilder.getTrackDirection(resetPos.x, resetPos.z);
+            const dir = this.trackBuilder.getTrackDirection(resetPos.x, resetPos.z, resetPos.y);
             resetYaw = Math.atan2(dir.dx, dir.dz);
         }
 

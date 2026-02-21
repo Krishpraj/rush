@@ -241,16 +241,11 @@ class btDiscreteDynamicsWorld {
             this._substep(subDt);
         }
 
-        // Ground friction applied ONCE per step (not per substep)
+        // Friction applied ONCE per step (same on ground and in air)
         for (const body of this.bodies) {
             if (body.mass <= 0) continue;
-            const bottomOffset = this._getShapeBottomOffset(body.shape);
-            const worldBottom = body.position._y + bottomOffset;
-            if (worldBottom <= 0.01) {
-                // Gentle rolling friction when on ground
-                body.velocity._x *= 0.995;
-                body.velocity._z *= 0.995;
-            }
+            body.velocity._x *= 0.995;
+            body.velocity._z *= 0.995;
         }
 
         // Clear forces AFTER all substeps
@@ -279,6 +274,59 @@ class btDiscreteDynamicsWorld {
             return -shape.halfExtents._y;
         }
         return 0;
+    }
+
+    /**
+     * Approximate local-space half extents from a body shape.
+     * For compound shapes this aggregates all child box shapes.
+     */
+    _getShapeHitbox(shape) {
+        if (!shape) {
+            return { halfX: 0.9, halfZ: 2.0, minY: -0.1, maxY: 0.6 };
+        }
+
+        if (shape.type === 'box' && shape.halfExtents) {
+            return {
+                halfX: shape.halfExtents._x,
+                halfZ: shape.halfExtents._z,
+                minY: -shape.halfExtents._y,
+                maxY: shape.halfExtents._y,
+            };
+        }
+
+        if (shape.type === 'compound' && Array.isArray(shape.children) && shape.children.length > 0) {
+            let minX = Infinity;
+            let maxX = -Infinity;
+            let minY = Infinity;
+            let maxY = -Infinity;
+            let minZ = Infinity;
+            let maxZ = -Infinity;
+
+            for (const child of shape.children) {
+                const cx = child.transform?._origin?._x || 0;
+                const cy = child.transform?._origin?._y || 0;
+                const cz = child.transform?._origin?._z || 0;
+                const hx = child.shape?.halfExtents?._x || 0;
+                const hy = child.shape?.halfExtents?._y || 0;
+                const hz = child.shape?.halfExtents?._z || 0;
+
+                minX = Math.min(minX, cx - hx);
+                maxX = Math.max(maxX, cx + hx);
+                minY = Math.min(minY, cy - hy);
+                maxY = Math.max(maxY, cy + hy);
+                minZ = Math.min(minZ, cz - hz);
+                maxZ = Math.max(maxZ, cz + hz);
+            }
+
+            return {
+                halfX: Math.max(Math.abs(minX), Math.abs(maxX)),
+                halfZ: Math.max(Math.abs(minZ), Math.abs(maxZ)),
+                minY,
+                maxY,
+            };
+        }
+
+        return { halfX: 0.9, halfZ: 2.0, minY: -0.1, maxY: 0.6 };
     }
 
     _substep(dt) {
@@ -346,15 +394,19 @@ class btDiscreteDynamicsWorld {
                 const bx = body.position._x;
                 const by = body.position._y;
                 const bz = body.position._z;
-                const carHalf = 0.9;
+                const hitbox = this._getShapeHitbox(body.shape);
+                const carHalfX = hitbox.halfX;
+                const carHalfZ = hitbox.halfZ;
+                const carMinY = hitbox.minY;
+                const carMaxY = hitbox.maxY;
 
-                if (bx + carHalf > wx - hx && bx - carHalf < wx + hx &&
-                    by + 0.6 > wy - hy && by - 0.1 < wy + hy &&
-                    bz + 2.0 > wz - hz && bz - 2.0 < wz + hz) {
+                if (bx + carHalfX > wx - hx && bx - carHalfX < wx + hx &&
+                    by + carMaxY > wy - hy && by + carMinY < wy + hy &&
+                    bz + carHalfZ > wz - hz && bz - carHalfZ < wz + hz) {
 
                     const overlaps = [
-                        { axis: 'x', pen: (hx + carHalf) - Math.abs(bx - wx), sign: Math.sign(bx - wx) || 1 },
-                        { axis: 'z', pen: (hz + 2.0) - Math.abs(bz - wz), sign: Math.sign(bz - wz) || 1 },
+                        { axis: 'x', pen: (hx + carHalfX) - Math.abs(bx - wx), sign: Math.sign(bx - wx) || 1 },
+                        { axis: 'z', pen: (hz + carHalfZ) - Math.abs(bz - wz), sign: Math.sign(bz - wz) || 1 },
                     ];
                     overlaps.sort((a, b) => a.pen - b.pen);
                     const best = overlaps[0];

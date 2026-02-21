@@ -78,25 +78,26 @@ class PhysicsEngine {
         return body;
     }
 
-    createCarBody(position) {
+    createCarBody(position, scale = 1) {
         const shape = new Ammo.btCompoundShape();
+        const s = Math.max(0.5, scale || 1);
 
         // Main chassis
         const chassisShape = new Ammo.btBoxShape(
-            new Ammo.btVector3(0.9, 0.3, 2.0)
+            new Ammo.btVector3(0.9 * s, 0.3 * s, 2.0 * s)
         );
         const chassisTransform = new Ammo.btTransform();
         chassisTransform.setIdentity();
-        chassisTransform.setOrigin(new Ammo.btVector3(0, 0.3, 0));
+        chassisTransform.setOrigin(new Ammo.btVector3(0, 0.3 * s, 0));
         shape.addChildShape(chassisTransform, chassisShape);
 
         // Cabin
         const cabinShape = new Ammo.btBoxShape(
-            new Ammo.btVector3(0.7, 0.25, 0.8)
+            new Ammo.btVector3(0.7 * s, 0.25 * s, 0.8 * s)
         );
         const cabinTransform = new Ammo.btTransform();
         cabinTransform.setIdentity();
-        cabinTransform.setOrigin(new Ammo.btVector3(0, 0.75, -0.2));
+        cabinTransform.setOrigin(new Ammo.btVector3(0, 0.75 * s, -0.2 * s));
         shape.addChildShape(cabinTransform, cabinShape);
 
         const transform = new Ammo.btTransform();
