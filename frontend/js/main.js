@@ -210,7 +210,8 @@
 
         // Simple clean scene — just car, ground, sky
         _menuPreviewScene = new THREE.Scene();
-        _menuPreviewScene.background = new THREE.Color(0x87ceeb);
+        _menuPreviewScene.background = new THREE.Color(0x0a1628);
+        _menuPreviewScene.fog = new THREE.Fog(0x0a1628, 60, 200);
 
         _menuPreviewRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         _menuPreviewRenderer.setSize(w, h);
@@ -223,83 +224,17 @@
         _menuPreviewCamera.position.set(6, 4.5, 8);
         _menuPreviewCamera.lookAt(0, 2.5, 0);
 
-        // Green ground
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(300, 300),
-            new THREE.MeshStandardMaterial({ color: 0x3dba5c, roughness: 0.9 })
+            new THREE.MeshStandardMaterial({ color: 0x0d1117, roughness: 0.5, metalness: 0.15 })
         );
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         _menuPreviewScene.add(ground);
 
-        // Simple oval track on the ground
-        const trackShape = new THREE.Shape();
-        const trackR = 40;
-        const trackInner = 32;
-        // Outer oval
-        trackShape.absellipse(0, 0, trackR, trackR * 0.65, 0, Math.PI * 2, false, 0);
-        // Inner hole
-        const holePath = new THREE.Path();
-        holePath.absellipse(0, 0, trackInner, trackInner * 0.65, 0, Math.PI * 2, true, 0);
-        trackShape.holes.push(holePath);
-        const trackGeo = new THREE.ShapeGeometry(trackShape, 64);
-        const trackMesh = new THREE.Mesh(trackGeo, new THREE.MeshStandardMaterial({
-            color: 0x555555, roughness: 0.7
-        }));
-        trackMesh.rotation.x = -Math.PI / 2;
-        trackMesh.position.y = 0.02;
-        _menuPreviewScene.add(trackMesh);
-
-        // Dashed center line on track
-        const centerR = (trackR + trackInner) / 2;
-        const centerRy = centerR * 0.65;
-        const dashPts = [];
-        for (let i = 0; i < 80; i++) {
-            const a = (i / 80) * Math.PI * 2;
-            dashPts.push(new THREE.Vector3(Math.cos(a) * centerR, 0.04, -Math.sin(a) * centerRy));
-        }
-        // Draw dashes as small boxes
-        for (let i = 0; i < dashPts.length; i += 2) {
-            const p = dashPts[i];
-            const dash = new THREE.Mesh(
-                new THREE.BoxGeometry(0.8, 0.01, 0.3),
-                new THREE.MeshStandardMaterial({ color: 0xffffff })
-            );
-            dash.position.copy(p);
-            const next = dashPts[(i + 1) % dashPts.length];
-            dash.lookAt(next);
-            _menuPreviewScene.add(dash);
-        }
-
-        // Scatter some simple trees around the track
-        const treeMat = new THREE.MeshStandardMaterial({ color: 0x2d8a45 });
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B5A2B });
-        const treePositions = [];
-        for (let i = 0; i < 24; i++) {
-            const angle = (i / 24) * Math.PI * 2;
-            const dist = trackR + 8 + Math.random() * 15;
-            treePositions.push({ x: Math.cos(angle) * dist, z: -Math.sin(angle) * dist * 0.65 });
-        }
-        for (let i = 0; i < 12; i++) {
-            const angle = (i / 12) * Math.PI * 2;
-            const dist = trackInner - 6 - Math.random() * 8;
-            treePositions.push({ x: Math.cos(angle) * dist, z: -Math.sin(angle) * dist * 0.65 });
-        }
-        treePositions.forEach(tp => {
-            const h = 2 + Math.random() * 2;
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, h, 6), trunkMat);
-            trunk.position.set(tp.x, h / 2, tp.z);
-            trunk.castShadow = true;
-            _menuPreviewScene.add(trunk);
-            const crown = new THREE.Mesh(new THREE.SphereGeometry(1 + Math.random() * 0.8, 8, 6), treeMat);
-            crown.position.set(tp.x, h + 0.5, tp.z);
-            crown.castShadow = true;
-            _menuPreviewScene.add(crown);
-        });
-
-        // Lighting
-        _menuPreviewScene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        // Lighting — clean, no colored tints
+        _menuPreviewScene.add(new THREE.AmbientLight(0x404050, 1.2));
+        const sun = new THREE.DirectionalLight(0xddeeff, 1.4);
         sun.position.set(5, 10, 7);
         sun.castShadow = true;
         sun.shadow.mapSize.width = 1024;
@@ -309,10 +244,10 @@
         sun.shadow.camera.top = 60;
         sun.shadow.camera.bottom = -60;
         _menuPreviewScene.add(sun);
-        const fill = new THREE.DirectionalLight(0x88ccff, 0.4);
+        const fill = new THREE.DirectionalLight(0xcccccc, 0.3);
         fill.position.set(-5, 3, -3);
         _menuPreviewScene.add(fill);
-        const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3dba5c, 0.3);
+        const hemi = new THREE.HemisphereLight(0x1a2030, 0x0a1020, 0.5);
         _menuPreviewScene.add(hemi);
 
         // Load F5 car

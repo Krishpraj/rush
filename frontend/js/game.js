@@ -256,6 +256,24 @@ class Game {
         this.bestLap = Infinity;
         this.finishRankings = [];
 
+        // Reset input state so held keys from previous race don't carry over
+        this.keys = {};
+        this.touchInput = { steerX: 0, gas: false, brake: false, boost: false };
+
+        // Reset wrong-way detection
+        this._wrongWay = false;
+        this._wrongWayTimer = 0;
+        this._wrongWayCooldown = 0;
+        const wrongWayEl = document.getElementById('hud-wrong-way');
+        if (wrongWayEl) wrongWayEl.classList.add('hidden');
+
+        // Reset auto-quality tracking so a fresh race gets a fair FPS measurement
+        this._fpsFrames = 0;
+        this._fpsTime = 0;
+
+        // Reset physics accumulator
+        this._physicsAccumulator = 0;
+
         // Clear old scene contents
         this._clearScene();
 
@@ -295,10 +313,28 @@ class Game {
         this.ui.hideAllScreens();
         this.ui.showHUD();
 
+        // Position camera behind the car so the new track is visible during countdown
+        if (this.localCar) {
+            this.localCar.updateCamera(this.camera, 0.016);
+        }
+        this._render();
+
+        // Render the new scene continuously during countdown so it's not stale
+        this._countdownRenderLoop = true;
+        const countdownRender = () => {
+            if (!this._countdownRenderLoop) return;
+            this._render();
+            requestAnimationFrame(countdownRender);
+        };
+        requestAnimationFrame(countdownRender);
+
         // Countdown — synced to goTime in multiplayer so all players start together
         if (showCountdown) {
             await this.ui.showCountdown(goTime);
         }
+
+        // Stop the countdown render loop before the full game loop takes over
+        this._countdownRenderLoop = false;
 
         // Start racing
         this.state = 'racing';
@@ -351,12 +387,16 @@ class Game {
 
     stopGame() {
         this.state = 'menu';
+        this._countdownRenderLoop = false;
         if (this.animFrameId) {
             cancelAnimationFrame(this.animFrameId);
             this.animFrameId = null;
         }
         if (this.network) {
             this.network.stopSync();
+        }
+        if (this.clock) {
+            this.clock.stop();
         }
         this._clearScene();
     }

@@ -420,21 +420,8 @@ class UIManager {
     // --- Loading ---
 
     setLoadingProgress(percent, text) {
-        const segs = document.querySelectorAll('.loader-segment');
-        const thresholdPerSegment = 100 / (segs.length || 1);
-        segs.forEach((seg, i) => {
-            const fillAt = (i + 1) * thresholdPerSegment;
-            seg.classList.toggle('filled', percent >= fillAt);
-        });
-        const car = document.getElementById('loader-car');
-        const trackWrap = document.querySelector('.loader-track-wrap');
-        if (car && trackWrap) {
-            const tw = trackWrap.offsetWidth || 320;
-            const pad = 8;
-            const carW = 24;
-            const maxLeft = tw - pad - carW;
-            car.style.left = pad + (percent / 100) * Math.max(0, maxLeft - pad) + 'px';
-        }
+        const fill = document.getElementById('loader-bar-fill');
+        if (fill) fill.style.width = Math.min(100, Math.max(0, percent)) + '%';
         const textEl = document.getElementById('loader-text');
         const percentEl = document.getElementById('loader-percent');
         if (textEl) textEl.textContent = text || '';
@@ -561,9 +548,9 @@ class UIManager {
     updatePartyLobby(party) {
         document.getElementById('party-code-value').textContent = party.code;
         const trackNames = {
-            track_1: 'Speed Loop',
-            track_2: 'City Sprint',
-            track_3: 'Mountain Pass',
+            track_1: 'Velocity',
+            track_2: 'Flux',
+            track_3: 'Zenith',
         };
         document.getElementById('party-track-name').textContent =
             trackNames[party.track_id] || party.track_id;
@@ -642,9 +629,9 @@ class UIManager {
         const body = document.getElementById('lb-body');
         body.innerHTML = '';
         const trackNames = {
-            track_1: 'Speed Loop',
-            track_2: 'City Sprint',
-            track_3: 'Mountain Pass',
+            track_1: 'Velocity',
+            track_2: 'Flux',
+            track_3: 'Zenith',
         };
         entries.forEach((entry, i) => {
             const row = document.createElement('tr');

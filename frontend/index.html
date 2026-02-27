@@ -14,16 +14,8 @@
         <div class="loader-content">
             <h1 class="game-title">RUSH</h1>
             <p class="game-subtitle">RACING</p>
-            <div class="loader-track-wrap">
-                <div class="loader-track" aria-hidden="true">
-                    <span class="loader-segment" data-segment="0"></span>
-                    <span class="loader-segment" data-segment="1"></span>
-                    <span class="loader-segment" data-segment="2"></span>
-                    <span class="loader-segment" data-segment="3"></span>
-                    <span class="loader-segment" data-segment="4"></span>
-                    <span class="loader-segment" data-segment="5"></span>
-                    <span class="loader-car" id="loader-car" aria-hidden="true"></span>
-                </div>
+            <div class="loader-bar-wrap">
+                <div class="loader-bar-fill" id="loader-bar-fill"></div>
             </div>
             <p class="loader-text" id="loader-text">Loading engine...</p>
             <p class="loader-percent" id="loader-percent">0%</p>
@@ -38,7 +30,7 @@
         <div class="menu-overlay">
             <!-- Title -->
             <div class="menu-header">
-                <h1 class="game-title">RUSH<span class="title-dot">.</span>IO</h1>
+                <h1 class="game-title">RUSH</h1>
             </div>
 
             <!-- Main content area -->
@@ -72,7 +64,7 @@
                     <button class="btn btn-primary btn-play" id="btn-single">PLAY</button>
 
                     <!-- Create (own row) -->
-                    <button class="btn btn-accent btn-create" id="btn-create-party">CREATE</button>
+                    <button class="btn btn-accent btn-create" id="btn-create-party">CREATE PARTY</button>
 
                     <!-- Join row: code + join -->
                     <div class="party-controls">
@@ -132,7 +124,7 @@
                     <div class="track-preview">
                         <canvas class="track-preview-canvas" data-track-id="track_1" width="200" height="100"></canvas>
                     </div>
-                    <h3>SPEED LOOP</h3>
+                    <h3>VELOCITY</h3>
                     <p>Sweeping hills &amp; S-curves</p>
                     <div class="track-meta">
                         <span class="track-difficulty easy">EASY</span>
@@ -144,7 +136,7 @@
                     <div class="track-preview">
                         <canvas class="track-preview-canvas" data-track-id="track_2" width="200" height="100"></canvas>
                     </div>
-                    <h3>CITY SPRINT</h3>
+                    <h3>FLUX</h3>
                     <p>Tight urban blocks &amp; alleys</p>
                     <div class="track-meta">
                         <span class="track-difficulty medium">MEDIUM</span>
@@ -156,7 +148,7 @@
                     <div class="track-preview">
                         <canvas class="track-preview-canvas" data-track-id="track_3" width="200" height="100"></canvas>
                     </div>
-                    <h3>MOUNTAIN PASS</h3>
+                    <h3>ZENITH</h3>
                     <p>Sharp hairpins &amp; elevation</p>
                     <div class="track-meta">
                         <span class="track-difficulty hard">HARD</span>
@@ -183,7 +175,7 @@
                 <button class="btn-icon" id="btn-copy-code" title="Copy code">📋</button>
             </div>
             <div class="party-track">
-                <span>Track: </span><span id="party-track-name">Speed Loop</span>
+                <span>Track: </span><span id="party-track-name">Velocity</span>
                 <button class="btn btn-small" id="btn-change-track-party">Change</button>
             </div>
             <div class="player-list" id="player-list"></div>
@@ -217,9 +209,9 @@
             <h2 class="panel-title">LEADERBOARD</h2>
             <div class="lb-track-filter">
                 <button class="btn btn-small lb-filter active" data-filter="all">ALL</button>
-                <button class="btn btn-small lb-filter" data-filter="track_1">SPEED LOOP</button>
-                <button class="btn btn-small lb-filter" data-filter="track_2">CITY SPRINT</button>
-                <button class="btn btn-small lb-filter" data-filter="track_3">MOUNTAIN PASS</button>
+                <button class="btn btn-small lb-filter" data-filter="track_1">VELOCITY</button>
+                <button class="btn btn-small lb-filter" data-filter="track_2">FLUX</button>
+                <button class="btn btn-small lb-filter" data-filter="track_3">ZENITH</button>
             </div>
             <div class="lb-table-container">
                 <table class="lb-table">

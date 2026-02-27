@@ -377,7 +377,7 @@ class Car {
         if (this._boostFlames.length > 0 || this._boostLight) return;
 
         const flameMatCore = new THREE.MeshBasicMaterial({
-            color: 0xfff2bf,
+            color: 0xdcefff,
             transparent: true,
             opacity: 0.95,
             side: THREE.DoubleSide,
@@ -385,7 +385,7 @@ class Car {
             blending: THREE.AdditiveBlending,
         });
         const flameMatMid = new THREE.MeshBasicMaterial({
-            color: 0xff8f2e,
+            color: 0x42a5f5,
             transparent: true,
             opacity: 0.78,
             side: THREE.DoubleSide,
@@ -393,7 +393,7 @@ class Car {
             blending: THREE.AdditiveBlending,
         });
         const flameMatOuter = new THREE.MeshBasicMaterial({
-            color: 0x3f9bff,
+            color: 0x0d47a1,
             transparent: true,
             opacity: 0.52,
             side: THREE.DoubleSide,
@@ -401,7 +401,7 @@ class Car {
             blending: THREE.AdditiveBlending,
         });
         const glowMat = new THREE.SpriteMaterial({
-            color: 0xff9b3d,
+            color: 0x1e88e5,
             transparent: true,
             opacity: 0.7,
             depthWrite: false,
@@ -448,7 +448,7 @@ class Car {
             });
         }
 
-        this._boostLight = new THREE.PointLight(0xff5a1f, 0, 8, 2);
+        this._boostLight = new THREE.PointLight(0x2196f3, 0, 8, 2);
         this._boostLight.position.set(0, 0.35, -2.2);
         this.group.add(this._boostLight);
     }
